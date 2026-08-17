@@ -3,5 +3,6 @@ dist/
 build/
 *.sqlite
 *.sqlite3
+*.tsbuildinfo
 .env
 .DS_Store
