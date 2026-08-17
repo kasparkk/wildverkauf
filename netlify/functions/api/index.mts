@@ -16,6 +16,14 @@ import {
 } from "./schemas.mts";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  // A missing payload would serialise to an empty body and reach the client as
+  // a successful but unusable response, so surface it as the error it is.
+  if (data === undefined && status !== 204) {
+    return new Response(JSON.stringify({ error: "Interner Fehler: keine Daten erhalten" }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
   return new Response(status === 204 ? null : JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json", ...headers },

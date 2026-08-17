@@ -1,6 +1,25 @@
 import { getDatabase } from "@netlify/database";
 
-export const db = getDatabase();
+/**
+ * The database handle is created on first use rather than at module load:
+ * Netlify functions must not run side effects at import time, and doing so
+ * made the very first query after a cold start return no rows.
+ */
+let cached: ReturnType<typeof getDatabase> | null = null;
+
+function client() {
+  if (!cached) cached = getDatabase();
+  return cached;
+}
+
+export const db = {
+  get sql() {
+    return client().sql;
+  },
+  get pool() {
+    return client().pool;
+  },
+};
 
 /**
  * Postgres returns NUMERIC and COUNT(...) values as strings to avoid precision
