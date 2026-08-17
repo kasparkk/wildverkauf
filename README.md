@@ -2,13 +2,13 @@
 
 Interne Web-App zur Verwaltung des Wildbretverkaufs: Bestand (Wildtiere &
 Teilstücke), Verkauf/Kassensystem mit Belegdruck und Kundenverwaltung.
+Läuft komplett auf Netlify.
 
 ## Stack
 
-- **Backend**: Node.js, Express, TypeScript, SQLite (`better-sqlite3`)
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, React Router
-
-Die Daten werden lokal in `server/data/wildverkauf.sqlite` gespeichert.
+- **Backend**: Netlify Function (`netlify/functions/api`), TypeScript
+- **Datenbank**: Netlify DB (Postgres) – wird beim Deploy automatisch bereitgestellt
 
 ## Funktionen
 
@@ -25,24 +25,52 @@ Die Daten werden lokal in `server/data/wildverkauf.sqlite` gespeichert.
 - **Übersicht**: Lagerwert, Umsatz im laufenden Monat, offene Zahlungen,
   Bestandsübersicht.
 
-## Entwicklung
+## Zugriffsschutz
+
+Die App ist durch ein Passwort geschützt. Beim Login wird ein signiertes
+Session-Cookie (HttpOnly, 30 Tage Gültigkeit) gesetzt; alle API-Aufrufe außer
+Login/Logout erfordern eine gültige Session.
+
+Dafür müssen zwei Umgebungsvariablen im Netlify-Projekt gesetzt sein:
+
+| Variable         | Bedeutung                                              |
+| ---------------- | ------------------------------------------------------ |
+| `APP_PASSWORD`   | Das Passwort für die Anmeldung                          |
+| `SESSION_SECRET` | Zufälliger Schlüssel zum Signieren der Session-Cookies  |
+
+Fehlt eine davon, liefert die API bewusst einen Fehler statt ungeschützte Daten.
+
+`SESSION_SECRET` neu erzeugen:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Wird `SESSION_SECRET` geändert, werden alle bestehenden Sessions ungültig.
+
+## Datenbank
+
+Das Schema liegt als Migration unter `netlify/database/migrations/`. Netlify
+wendet neue Migrationen beim Deploy automatisch an. Für eine Änderung einen
+neuen Ordner nach dem Muster `<nummer>_<slug>/migration.sql` anlegen – die
+bestehenden Migrationen nicht nachträglich ändern.
+
+## Lokale Entwicklung
 
 ```bash
 npm install
-
-# Backend (Port 3001) und Frontend (Port 5173) parallel in zwei Terminals:
-npm run dev:server
-npm run dev:client
+npm install -g netlify-cli   # einmalig
+netlify dev
 ```
 
-Die Vite-Dev-App proxyt `/api`-Aufrufe automatisch an den Server.
+`netlify dev` startet Vite, die Functions und eine lokale Datenbank-Branch
+zusammen. Für den Login lokal `APP_PASSWORD` und `SESSION_SECRET` setzen,
+z. B. in einer `.env`-Datei im Projektverzeichnis.
 
-## Produktion
+## Build
 
 ```bash
-npm run build     # baut Server (dist/) und Client (client/dist)
-npm start         # startet den Server auf Port 3001, der die gebaute
-                   # Frontend-App mit ausliefert
+npm run build      # Typecheck der Function + Frontend-Build nach client/dist
 ```
 
-`PORT` kann per Umgebungsvariable angepasst werden.
+Netlify nutzt genau diesen Befehl (siehe `netlify.toml`).
