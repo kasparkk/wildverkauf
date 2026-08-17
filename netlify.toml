@@ -6,6 +6,13 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# Netlify serves .webmanifest as octet-stream, which stops browsers from
+# treating it as an installable web app manifest.
+[[headers]]
+  for = "/site.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+
 # API requests go to the serverless function. This rule must stay above the
 # SPA fallback, otherwise /api/* would be answered with index.html.
 [[redirects]]
