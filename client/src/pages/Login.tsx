@@ -28,7 +28,8 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
         className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 space-y-4"
       >
         <div className="text-center">
-          <h1 className="text-2xl font-bold">🦌 Wildverkauf</h1>
+          <img src="/icon.svg" alt="" className="w-16 h-16 rounded-2xl mx-auto mb-3" />
+          <h1 className="text-2xl font-bold">Wildverkauf</h1>
           <p className="text-sm text-stone-500 mt-1">Bitte Passwort eingeben.</p>
         </div>
         <div>

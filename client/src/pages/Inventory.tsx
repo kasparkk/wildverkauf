@@ -313,6 +313,15 @@ function AnimalForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   );
 }
 
+const CUT_PRESETS: Record<string, string[]> = {
+  Edelteile: ["Rücken", "Filet", "Keule", "Blatt (Schulter)", "Nuss", "Oberschale"],
+  Verarbeitet: ["Gulasch", "Braten", "Ragout", "Geschnetzeltes", "Hackfleisch"],
+  Wurst: ["Bratwurst", "Salami", "Leberwurst"],
+  Sonstiges: ["Rippchen", "Suppenknochen", "Leber", "Ganzes Tier", "Hälfte"],
+};
+
+const CUSTOM_NAME = "__custom__";
+
 function CutForm({
   animals,
   onClose,
@@ -323,7 +332,9 @@ function CutForm({
   onSaved: () => void;
 }) {
   const [animalId, setAnimalId] = useState<string>("");
-  const [name, setName] = useState("");
+  const [nameChoice, setNameChoice] = useState("");
+  const [customName, setCustomName] = useState("");
+  const name = nameChoice === CUSTOM_NAME ? customName.trim() : nameChoice;
   const [weight, setWeight] = useState("");
   const [pricingMode, setPricingMode] = useState<"perKg" | "fixed">("perKg");
   const [pricePerKg, setPricePerKg] = useState("");
@@ -358,14 +369,37 @@ function CutForm({
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Bezeichnung</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+          <select
+            value={nameChoice}
+            onChange={(e) => setNameChoice(e.target.value)}
             required
-            placeholder="z. B. Rehrücken, Keule, Gulasch, Wurst"
             className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
-          />
+          >
+            <option value="" disabled>
+              Bitte wählen…
+            </option>
+            {Object.entries(CUT_PRESETS).map(([group, options]) => (
+              <optgroup key={group} label={group}>
+                {options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+            <option value={CUSTOM_NAME}>Andere Bezeichnung…</option>
+          </select>
+          {nameChoice === CUSTOM_NAME && (
+            <input
+              type="text"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              required
+              autoFocus
+              placeholder="z. B. Rehrücken am Knochen"
+              className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm mt-2"
+            />
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Wildtier (optional)</label>
@@ -448,7 +482,7 @@ function CutForm({
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !name}
             className="px-3 py-2 text-sm rounded-md bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50"
           >
             Speichern

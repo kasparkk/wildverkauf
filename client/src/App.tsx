@@ -46,8 +46,9 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       <aside className="no-print bg-forest-800 text-forest-50 md:w-56 md:min-h-screen md:sticky md:top-0 flex flex-col">
-        <div className="p-4 border-b border-forest-700">
-          <h1 className="text-xl font-bold tracking-tight">🦌 Wildverkauf</h1>
+        <div className="p-4 border-b border-forest-700 flex items-center gap-2.5">
+          <img src="/icon.svg" alt="" className="w-8 h-8 rounded-lg shrink-0" />
+          <h1 className="text-xl font-bold tracking-tight">Wildverkauf</h1>
         </div>
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible md:flex-1">
           {navItems.map((item) => (

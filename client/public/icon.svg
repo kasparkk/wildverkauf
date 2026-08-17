@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Wildverkauf">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a7343" />
+      <stop offset="100%" stop-color="#1f2f1c" />
+    </linearGradient>
+  </defs>
+
+  <rect width="100" height="100" rx="22" fill="url(#bg)" />
+
+  <!-- antlers: an outward-sweeping beam per side with upright tines rising from it -->
+  <g fill="none" stroke="#f4f8f3" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48 56 C 43 49.5 37 44.5 31 41 C 28 39.5 26 35 25 30" />
+    <path d="M43.5 48.5 C 43 44 42.5 40.5 42 36.5" />
+    <path d="M36.5 43.5 C 35.5 39 34.5 35.5 33.5 32" />
+
+    <path d="M52 56 C 57 49.5 63 44.5 69 41 C 72 39.5 74 35 75 30" />
+    <path d="M56.5 48.5 C 57 44 57.5 40.5 58 36.5" />
+    <path d="M63.5 43.5 C 64.5 39 65.5 35.5 66.5 32" />
+  </g>
+
+  <!-- head -->
+  <path d="M42 62
+           C 42 56.5 45.6 53.8 50 53.8
+           C 54.4 53.8 58 56.5 58 62
+           L 57.3 72
+           C 56.5 80.8 53.6 86 50 86
+           C 46.4 86 43.5 80.8 42.7 72
+           Z"
+        fill="#f4f8f3" />
+
+  <!-- eyes -->
+  <circle cx="46.2" cy="65" r="2.4" fill="#1f2f1c" />
+  <circle cx="53.8" cy="65" r="2.4" fill="#1f2f1c" />
+
+  <!-- nose -->
+  <ellipse cx="50" cy="78.5" rx="2.9" ry="2.4" fill="#2e4a2a" />
+</svg>

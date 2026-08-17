@@ -63,9 +63,12 @@ export default function SaleDetail() {
 
       <div className="print-area bg-white rounded-lg border border-stone-200 shadow-sm p-6 max-w-2xl">
         <div className="flex justify-between items-start border-b border-stone-200 pb-4 mb-4">
-          <div>
-            <h1 className="text-xl font-bold">🦌 Wildverkauf</h1>
-            <p className="text-sm text-stone-500">Beleg #{sale.id}</p>
+          <div className="flex items-center gap-2.5">
+            <img src="/icon.svg" alt="" className="w-9 h-9 rounded-lg" />
+            <div>
+              <h1 className="text-xl font-bold">Wildverkauf</h1>
+              <p className="text-sm text-stone-500">Beleg #{sale.id}</p>
+            </div>
           </div>
           <div className="text-right text-sm">
             <p>{formatDate(sale.date)}</p>
