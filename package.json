@@ -1,0 +1,17 @@
+{
+  "name": "wildverkauf",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build:server": "npm run build -w server",
+    "build:client": "npm run build -w client",
+    "build": "npm run build:server && npm run build:client",
+    "start": "npm run start -w server"
+  }
+}
