@@ -74,3 +74,13 @@ npm run build      # Typecheck der Function + Frontend-Build nach client/dist
 ```
 
 Netlify nutzt genau diesen Befehl (siehe `netlify.toml`).
+
+## App-Icon
+
+`client/public/icon.svg` ist die Quelle für alle Icons; die PNG-Varianten
+(`icon-180/192/512.png`) sind daraus gerendert. Wird das SVG geändert, müssen
+die PNGs neu erzeugt werden.
+
+Die Hirsch-Grafik stammt aus [Tabler Icons](https://tabler.io/icons)
+(Copyright © 2020–2024 Paweł Kuna) und steht unter der MIT-Lizenz – frei
+verwendbar, auch kommerziell. Hintergrund und Farbgebung sind projekteigen.

@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Wildverkauf">
+  <!--
+    Deer glyph from Tabler Icons (https://tabler.io/icons), MIT licensed.
+    Copyright (c) 2020-2024 Paweł Kuna. See README for the license note.
+  -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#4a7343" />
@@ -8,31 +12,19 @@
 
   <rect width="100" height="100" rx="22" fill="url(#bg)" />
 
-  <!-- antlers: an outward-sweeping beam per side with upright tines rising from it -->
-  <g fill="none" stroke="#f4f8f3" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M48 56 C 43 49.5 37 44.5 31 41 C 28 39.5 26 35 25 30" />
-    <path d="M43.5 48.5 C 43 44 42.5 40.5 42 36.5" />
-    <path d="M36.5 43.5 C 35.5 39 34.5 35.5 33.5 32" />
-
-    <path d="M52 56 C 57 49.5 63 44.5 69 41 C 72 39.5 74 35 75 30" />
-    <path d="M56.5 48.5 C 57 44 57.5 40.5 58 36.5" />
-    <path d="M63.5 43.5 C 64.5 39 65.5 35.5 66.5 32" />
+  <g transform="translate(15.2 19.55) scale(2.9)"
+     fill="none" stroke="#f4f8f3" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 3c0 2 1 3 4 3c2 0 3 1 3 3" />
+    <path d="M21 3c0 2 -1 3 -4 3c-2 0 -3 .333 -3 3" />
+    <path d="M12 18c-1 0 -4 -3 -4 -6c0 -2 1.333 -3 4 -3s4 1 4 3c0 3 -3 6 -4 6" />
+    <path d="M15.185 14.889l.095 -.18a4 4 0 1 1 -6.56 0" />
+    <path d="M17 3c0 1.333 -.333 2.333 -1 3" />
+    <path d="M7 3c0 1.333 .333 2.333 1 3" />
+    <path d="M7 6c-2.667 .667 -4.333 1.667 -5 3" />
+    <path d="M17 6c2.667 .667 4.333 1.667 5 3" />
+    <path d="M8.5 10l-1.5 -1" />
+    <path d="M15.5 10l1.5 -1" />
+    <path d="M12 15h.01" />
   </g>
-
-  <!-- head -->
-  <path d="M42 62
-           C 42 56.5 45.6 53.8 50 53.8
-           C 54.4 53.8 58 56.5 58 62
-           L 57.3 72
-           C 56.5 80.8 53.6 86 50 86
-           C 46.4 86 43.5 80.8 42.7 72
-           Z"
-        fill="#f4f8f3" />
-
-  <!-- eyes -->
-  <circle cx="46.2" cy="65" r="2.4" fill="#1f2f1c" />
-  <circle cx="53.8" cy="65" r="2.4" fill="#1f2f1c" />
-
-  <!-- nose -->
-  <ellipse cx="50" cy="78.5" rx="2.9" ry="2.4" fill="#2e4a2a" />
 </svg>
