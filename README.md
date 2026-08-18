@@ -27,20 +27,25 @@ Läuft komplett auf Netlify.
 
 ## Zugriffsschutz
 
-Die App ist durch ein Passwort geschützt. Beim Login wird ein signiertes
-Session-Cookie (HttpOnly, 30 Tage Gültigkeit) gesetzt; alle API-Aufrufe außer
-Login/Logout erfordern eine gültige Session.
-
-Dafür müssen zwei Umgebungsvariablen im Netlify-Projekt gesetzt sein:
+Der Passwortschutz wird allein über Umgebungsvariablen gesteuert:
 
 | Variable         | Bedeutung                                              |
 | ---------------- | ------------------------------------------------------ |
-| `APP_PASSWORD`   | Das Passwort für die Anmeldung                          |
+| `APP_PASSWORD`   | Passwort für die Anmeldung – **steuert den Schutz**    |
 | `SESSION_SECRET` | Zufälliger Schlüssel zum Signieren der Session-Cookies  |
 
-Fehlt eine davon, liefert die API bewusst einen Fehler statt ungeschützte Daten.
+- **Ist `APP_PASSWORD` gesetzt**, verlangt die App eine Anmeldung. Beim Login
+  wird ein signiertes Session-Cookie (HttpOnly, 30 Tage) gesetzt; alle
+  API-Aufrufe außer Login/Logout erfordern eine gültige Session.
+- **Ist `APP_PASSWORD` nicht gesetzt**, läuft die App offen – ohne Login und
+  ohne Abmelden-Knopf. Achtung: Dann kommt jeder mit der URL an sämtliche
+  Daten, auch an die Kundendaten.
 
-`SESSION_SECRET` neu erzeugen:
+Ist `APP_PASSWORD` gesetzt, `SESSION_SECRET` aber nicht, liefert die API
+bewusst einen Fehler, statt die Daten ungeschützt auszuliefern.
+
+Schutz wieder einschalten: `APP_PASSWORD` im Netlify-Projekt setzen und neu
+deployen. `SESSION_SECRET` neu erzeugen:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

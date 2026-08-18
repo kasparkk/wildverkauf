@@ -53,14 +53,24 @@ export async function logout(): Promise<void> {
   await fetch(`${BASE}/logout`, { method: "POST" });
 }
 
-export async function checkSession(): Promise<boolean> {
+export interface SessionState {
+  /** Whether the current visitor may use the app. */
+  authenticated: boolean;
+  /** Whether a password is configured at all; false means the app runs open. */
+  protected: boolean;
+}
+
+export async function checkSession(): Promise<SessionState> {
   try {
     const res = await fetch(`${BASE}/session`);
-    if (!res.ok) return false;
-    const body = (await res.json()) as { authenticated?: boolean };
-    return body.authenticated === true;
+    if (!res.ok) return { authenticated: false, protected: true };
+    const body = (await res.json()) as Partial<SessionState>;
+    return {
+      authenticated: body.authenticated === true,
+      protected: body.protected !== false,
+    };
   } catch {
-    return false;
+    return { authenticated: false, protected: true };
   }
 }
 

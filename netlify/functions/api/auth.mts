@@ -9,9 +9,18 @@ function env(name: string): string | undefined {
   return value && value.length > 0 ? value : undefined;
 }
 
-/** Both secrets must be configured, otherwise the API refuses to serve data. */
+/**
+ * The API is password protected exactly when APP_PASSWORD is set. Without it
+ * the app runs open, so protection can be switched on and off through the
+ * environment alone.
+ */
+export function isProtected(): boolean {
+  return env("APP_PASSWORD") !== undefined;
+}
+
+/** A half-configured setup must not silently serve data unprotected. */
 export function authConfigError(): string | null {
-  if (!env("APP_PASSWORD")) return "APP_PASSWORD ist nicht konfiguriert.";
+  if (!isProtected()) return null;
   if (!env("SESSION_SECRET")) return "SESSION_SECRET ist nicht konfiguriert.";
   return null;
 }
@@ -59,6 +68,7 @@ function readCookie(req: Request, name: string): string | null {
 }
 
 export function isAuthenticated(req: Request): boolean {
+  if (!isProtected()) return true;
   const token = readCookie(req, COOKIE_NAME);
   return token !== null && verifySessionToken(token);
 }

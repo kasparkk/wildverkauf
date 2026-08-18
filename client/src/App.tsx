@@ -8,7 +8,7 @@ import Pos from "./pages/Pos";
 import SaleHistory from "./pages/SaleHistory";
 import SaleDetail from "./pages/SaleDetail";
 import Login from "./pages/Login";
-import { checkSession, logout, setUnauthorizedHandler } from "./lib/api";
+import { checkSession, logout, setUnauthorizedHandler, type SessionState } from "./lib/api";
 
 const navItems = [
   { to: "/", label: "Übersicht", end: true },
@@ -19,28 +19,30 @@ const navItems = [
 ];
 
 export default function App() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [session, setSession] = useState<SessionState | null>(null);
 
   useEffect(() => {
-    checkSession().then(setAuthenticated);
+    checkSession().then(setSession);
   }, []);
 
   useEffect(() => {
-    setUnauthorizedHandler(() => setAuthenticated(false));
+    setUnauthorizedHandler(() =>
+      setSession((current) => ({ authenticated: false, protected: current?.protected ?? true }))
+    );
     return () => setUnauthorizedHandler(null);
   }, []);
 
   const handleLogout = useCallback(async () => {
     await logout();
-    setAuthenticated(false);
+    setSession({ authenticated: false, protected: true });
   }, []);
 
-  if (authenticated === null) {
+  if (session === null) {
     return <div className="min-h-screen flex items-center justify-center text-stone-500">Lade…</div>;
   }
 
-  if (!authenticated) {
-    return <Login onSuccess={() => setAuthenticated(true)} />;
+  if (!session.authenticated) {
+    return <Login onSuccess={() => setSession({ authenticated: true, protected: true })} />;
   }
 
   return (
@@ -68,12 +70,14 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-3 text-sm text-forest-200 hover:text-white hover:bg-forest-700/60 text-left border-t border-forest-700"
-        >
-          Abmelden
-        </button>
+        {session.protected && (
+          <button
+            onClick={handleLogout}
+            className="px-4 py-3 text-sm text-forest-200 hover:text-white hover:bg-forest-700/60 text-left border-t border-forest-700"
+          >
+            Abmelden
+          </button>
+        )}
       </aside>
       <main className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
         <Routes>

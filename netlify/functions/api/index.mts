@@ -5,6 +5,7 @@ import {
   clearedCookie,
   createSessionToken,
   isAuthenticated,
+  isProtected,
   sessionCookie,
 } from "./auth.mts";
 import {
@@ -59,6 +60,7 @@ export default async (req: Request): Promise<Response> => {
 
   // --- Session endpoints (the only ones reachable without a valid cookie) ---
   if (resource === "login" && req.method === "POST") {
+    if (!isProtected()) return json({ ok: true });
     const body = (await readBody(req)) as { password?: unknown };
     if (!checkPassword(body.password)) {
       return json({ error: "Falsches Passwort" }, 401);
@@ -71,7 +73,7 @@ export default async (req: Request): Promise<Response> => {
   }
 
   if (resource === "session" && req.method === "GET") {
-    return json({ authenticated: isAuthenticated(req) });
+    return json({ authenticated: isAuthenticated(req), protected: isProtected() });
   }
 
   if (!isAuthenticated(req)) {
