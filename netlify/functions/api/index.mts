@@ -12,9 +12,12 @@ import {
   animalSchema,
   cutSchema,
   customerSchema,
+  labelStampSchema,
   saleSchema,
   saleUpdateSchema,
+  settingsSchema,
 } from "./schemas.mts";
+import { scanConfigError, scanLabel, scanRequestSchema } from "./scan.mts";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   // A missing payload would serialise to an empty body and reach the client as
@@ -92,6 +95,12 @@ export default async (req: Request): Promise<Response> => {
         return await handleSales(req, id);
       case "stats":
         return await handleStats(req);
+      case "settings":
+        return await handleSettings(req);
+      case "labels":
+        return await handleLabels(req);
+      case "scan":
+        return await handleScan(req);
       default:
         return notFound();
     }
@@ -181,9 +190,11 @@ async function handleCuts(req: Request, id: number | null): Promise<Response> {
     if (!parsed.success) return badRequest(parsed.error.flatten());
     const d = parsed.data;
     const [cut] = await db.sql`
-      INSERT INTO cuts (animal_id, name, weight_kg, price_per_kg, fixed_price, status, notes)
+      INSERT INTO cuts (animal_id, name, weight_kg, price_per_kg, fixed_price, status, notes,
+                        packed_on, best_before)
       VALUES (${d.animal_id ?? null}, ${d.name}, ${d.weight_kg ?? null}, ${d.price_per_kg ?? null},
-              ${d.fixed_price ?? null}, ${d.status ?? "available"}, ${d.notes ?? null})
+              ${d.fixed_price ?? null}, ${d.status ?? "available"}, ${d.notes ?? null},
+              ${d.packed_on ?? null}, ${d.best_before ?? null})
       RETURNING *`;
     return json(normalize(cut), 201);
   }
@@ -202,7 +213,9 @@ async function handleCuts(req: Request, id: number | null): Promise<Response> {
           price_per_kg = ${d.price_per_kg ?? null},
           fixed_price = ${d.fixed_price ?? null},
           status = ${d.status},
-          notes = ${d.notes ?? null}
+          notes = ${d.notes ?? null},
+          packed_on = ${d.packed_on ?? null},
+          best_before = ${d.best_before ?? null}
       WHERE id = ${id}
       RETURNING *`;
     return json(normalize(cut));
@@ -402,6 +415,91 @@ async function handleSales(req: Request, id: number | null): Promise<Response> {
   }
 
   return notFound();
+}
+
+// --------------------------------------------------------------------------
+// Settings (key/value pairs shown on printed labels)
+// --------------------------------------------------------------------------
+
+const SETTING_DEFAULTS: Record<string, string> = {
+  business_name: "",
+  business_address: "",
+  shelf_life_days: "14",
+};
+
+async function readSettings(): Promise<Record<string, string>> {
+  const rows = (await db.sql`SELECT key, value FROM settings`) as Array<{
+    key: string;
+    value: string | null;
+  }>;
+  const stored = Object.fromEntries(rows.map((row) => [row.key, row.value ?? ""]));
+  return { ...SETTING_DEFAULTS, ...stored };
+}
+
+async function handleSettings(req: Request): Promise<Response> {
+  if (req.method === "GET") {
+    const settings = await readSettings();
+    return json({ ...settings, shelf_life_days: Number(settings.shelf_life_days) });
+  }
+
+  if (req.method === "PUT") {
+    const parsed = settingsSchema.safeParse(await readBody(req));
+    if (!parsed.success) return badRequest(parsed.error.flatten());
+
+    for (const [key, value] of Object.entries(parsed.data)) {
+      if (value === undefined) continue;
+      await db.sql`
+        INSERT INTO settings (key, value) VALUES (${key}, ${value === null ? null : String(value)})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    }
+
+    const settings = await readSettings();
+    return json({ ...settings, shelf_life_days: Number(settings.shelf_life_days) });
+  }
+
+  return notFound();
+}
+
+// --------------------------------------------------------------------------
+// Labels
+// --------------------------------------------------------------------------
+
+async function handleLabels(req: Request): Promise<Response> {
+  // Records which packaging dates were printed onto which cuts, so a reprint
+  // reproduces the label already stuck on the package.
+  if (req.method === "POST") {
+    const parsed = labelStampSchema.safeParse(await readBody(req));
+    if (!parsed.success) return badRequest(parsed.error.flatten());
+    const { cut_ids, packed_on, best_before } = parsed.data;
+
+    const updated = await db.sql`
+      UPDATE cuts SET packed_on = ${packed_on}, best_before = ${best_before}
+      WHERE id = ANY(${cut_ids}::int[])
+      RETURNING *`;
+    return json(normalizeAll(updated));
+  }
+
+  return notFound();
+}
+
+// --------------------------------------------------------------------------
+// Label text recognition
+// --------------------------------------------------------------------------
+
+async function handleScan(req: Request): Promise<Response> {
+  if (req.method !== "POST") return notFound();
+
+  const configError = scanConfigError();
+  if (configError) return json({ error: configError }, 503);
+
+  const parsed = scanRequestSchema.safeParse(await readBody(req));
+  if (!parsed.success) return badRequest(parsed.error.flatten());
+
+  const result = await scanLabel(parsed.data.image, parsed.data.media_type);
+  if (!result) {
+    return json({ error: "Das Etikett konnte nicht gelesen werden." }, 422);
+  }
+  return json(result);
 }
 
 // --------------------------------------------------------------------------

@@ -15,6 +15,21 @@ export const cutSchema = z.object({
   fixed_price: z.number().nullable().optional(),
   status: z.enum(["available", "reserved", "sold"]).optional(),
   notes: z.string().nullable().optional(),
+  packed_on: z.string().nullable().optional(),
+  best_before: z.string().nullable().optional(),
+});
+
+export const settingsSchema = z.object({
+  business_name: z.string().nullable().optional(),
+  business_address: z.string().nullable().optional(),
+  shelf_life_days: z.number().int().positive().nullable().optional(),
+});
+
+/** Stamps packaging and best-before dates onto the cuts being labelled. */
+export const labelStampSchema = z.object({
+  cut_ids: z.array(z.number().int()).min(1),
+  packed_on: z.string().min(1),
+  best_before: z.string().min(1),
 });
 
 export const customerSchema = z.object({

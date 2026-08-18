@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, formatCurrency, formatDate, cutPrice } from "../lib/api";
 import { Animal, Cut, CutStatus } from "../lib/types";
 import Modal from "../components/Modal";
 import StatusBadge from "../components/StatusBadge";
+import { LabelScan, downscaleToBase64 } from "../lib/scan";
 
 type Tab = "cuts" | "animals";
 
@@ -13,6 +14,10 @@ export default function Inventory() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [showCutForm, setShowCutForm] = useState(false);
+  const [prefill, setPrefill] = useState<LabelScan | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
   function loadAnimals() {
@@ -37,6 +42,23 @@ export default function Inventory() {
     loadCuts();
   }
 
+  /** Photographs a foreign label and opens the cut form with what was read. */
+  async function scanPhoto(file: File) {
+    setScanning(true);
+    setScanError(null);
+    try {
+      const image = await downscaleToBase64(file);
+      const result = await api.post<LabelScan>("/scan", { image, media_type: "image/jpeg" });
+      setPrefill(result);
+      setShowCutForm(true);
+    } catch (err: any) {
+      setScanError(err.message);
+    } finally {
+      setScanning(false);
+      if (photoInput.current) photoInput.current.value = "";
+    }
+  }
+
   async function deleteAnimal(animal: Animal) {
     if (!confirm(`Wildtier "${animal.species}" wirklich löschen? Zugehörige Teilstücke bleiben erhalten.`)) return;
     await api.del(`/animals/${animal.id}`);
@@ -58,7 +80,17 @@ export default function Inventory() {
             + Wildtier
           </button>
           <button
-            onClick={() => setShowCutForm(true)}
+            onClick={() => photoInput.current?.click()}
+            disabled={scanning}
+            className="px-3 py-2 text-sm rounded-md border border-forest-700 text-forest-700 hover:bg-forest-50 disabled:opacity-50"
+          >
+            {scanning ? "Lese Etikett…" : "Etikett abfotografieren"}
+          </button>
+          <button
+            onClick={() => {
+              setPrefill(null);
+              setShowCutForm(true);
+            }}
             className="px-3 py-2 text-sm rounded-md bg-forest-700 text-white hover:bg-forest-800"
           >
             + Teilstück
@@ -66,7 +98,24 @@ export default function Inventory() {
         </div>
       </div>
 
+      <input
+        ref={photoInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) scanPhoto(file);
+        }}
+      />
+
       {error && <p className="text-red-600 text-sm">{error}</p>}
+      {scanError && (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          {scanError}
+        </p>
+      )}
 
       <div className="flex gap-1 border-b border-stone-200">
         <button
@@ -211,9 +260,14 @@ export default function Inventory() {
       {showCutForm && (
         <CutForm
           animals={animals}
-          onClose={() => setShowCutForm(false)}
+          prefill={prefill}
+          onClose={() => {
+            setShowCutForm(false);
+            setPrefill(null);
+          }}
           onSaved={() => {
             setShowCutForm(false);
+            setPrefill(null);
             loadCuts();
           }}
         />
@@ -322,23 +376,42 @@ const CUT_PRESETS: Record<string, string[]> = {
 
 const CUSTOM_NAME = "__custom__";
 
+const ALL_PRESETS = Object.values(CUT_PRESETS).flat();
+
 function CutForm({
   animals,
+  prefill,
   onClose,
   onSaved,
 }: {
   animals: Animal[];
+  prefill?: LabelScan | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
+  // A scanned name only preselects the dropdown when it matches a preset,
+  // otherwise it lands in the free-text field so nothing gets silently changed.
+  const scannedName = prefill?.cut_name?.trim() ?? "";
+  const matchedPreset = ALL_PRESETS.find(
+    (preset) => preset.toLowerCase() === scannedName.toLowerCase()
+  );
+
   const [animalId, setAnimalId] = useState<string>("");
-  const [nameChoice, setNameChoice] = useState("");
-  const [customName, setCustomName] = useState("");
+  const [nameChoice, setNameChoice] = useState(
+    matchedPreset ?? (scannedName ? CUSTOM_NAME : "")
+  );
+  const [customName, setCustomName] = useState(matchedPreset ? "" : scannedName);
   const name = nameChoice === CUSTOM_NAME ? customName.trim() : nameChoice;
-  const [weight, setWeight] = useState("");
-  const [pricingMode, setPricingMode] = useState<"perKg" | "fixed">("perKg");
-  const [pricePerKg, setPricePerKg] = useState("");
-  const [fixedPrice, setFixedPrice] = useState("");
+  const [weight, setWeight] = useState(prefill?.weight_kg != null ? String(prefill.weight_kg) : "");
+  const [pricingMode, setPricingMode] = useState<"perKg" | "fixed">(
+    prefill?.fixed_price != null && prefill?.price_per_kg == null ? "fixed" : "perKg"
+  );
+  const [pricePerKg, setPricePerKg] = useState(
+    prefill?.price_per_kg != null ? String(prefill.price_per_kg) : ""
+  );
+  const [fixedPrice, setFixedPrice] = useState(
+    prefill?.fixed_price != null ? String(prefill.fixed_price) : ""
+  );
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -355,6 +428,8 @@ function CutForm({
         price_per_kg: pricingMode === "perKg" && pricePerKg ? Number(pricePerKg) : null,
         fixed_price: pricingMode === "fixed" && fixedPrice ? Number(fixedPrice) : null,
         notes: notes || null,
+        packed_on: prefill?.packed_on ?? null,
+        best_before: prefill?.best_before ?? null,
       });
       onSaved();
     } catch (err: any) {
@@ -367,6 +442,17 @@ function CutForm({
   return (
     <Modal title="Neues Teilstück" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
+        {prefill && (
+          <div className="text-sm bg-forest-50 border border-forest-200 rounded-md px-3 py-2">
+            <p className="text-forest-900 font-medium">Vom Etikett übernommen</p>
+            <p className="text-forest-800 mt-0.5">
+              Bitte kurz prüfen – die Texterkennung liegt nicht immer richtig.
+            </p>
+            {prefill.species && (
+              <p className="text-forest-700 mt-1">Erkannte Wildart: {prefill.species}</p>
+            )}
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-1">Bezeichnung</label>
           <select

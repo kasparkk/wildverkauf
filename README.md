@@ -24,6 +24,34 @@ Läuft komplett auf Netlify.
 - **Kunden**: Kontakte verwalten, Bestellhistorie pro Kunde einsehen.
 - **Übersicht**: Lagerwert, Umsatz im laufenden Monat, offene Zahlungen,
   Bestandsübersicht.
+- **Etiketten**: Teilstücke auswählen und Etiketten auf A4-Bögen drucken
+  (70 × 37 mm, 24 pro Bogen – z. B. Herma 4459 / Avery 3474). Auf dem Etikett
+  stehen Wildart, Teilstück, Gewicht, Preis, Erlegungs-, Verpackungs- und
+  Mindesthaltbarkeitsdatum, die Betriebsangaben und ein QR-Code.
+- **Etikett scannen**: Im Verkauf lässt sich der QR-Code eines selbst gedruckten
+  Etiketts mit der Kamera einlesen; das Teilstück landet direkt im Warenkorb.
+- **Etikett abfotografieren**: Fremde Etiketten (z. B. vom Zerlegebetrieb)
+  werden per Texterkennung ausgelesen und füllen das Formular für ein neues
+  Teilstück vor.
+
+## Etiketten
+
+Das Druckformat ist auf A4-Bögen mit 70 × 37 mm ausgelegt (3 Spalten × 8 Zeilen)
+und in `client/src/index.css` unter „Label sheet“ definiert. Für ein anderes
+Bogenformat dort die Millimeterwerte und in `client/src/lib/labels.ts` die
+Rasterangaben anpassen. Im Druckdialog müssen Ränder auf „keine“ und die
+Skalierung auf 100 % stehen, sonst verrutschen die Etiketten.
+
+Der QR-Code enthält `wv:cut:<id>` – also nur die interne Nummer des Teilstücks,
+keine Kundendaten.
+
+## Texterkennung (optional)
+
+Das Abfotografieren fremder Etiketten läuft über die Claude-API und ist nur
+aktiv, wenn im Netlify-Projekt die Variable `ANTHROPIC_API_KEY` gesetzt ist.
+Fehlt sie, meldet die App das verständlich und alles andere funktioniert
+weiter. Jeder Scan verursacht Kosten nach Anthropic-Preisliste; das Foto wird
+vor dem Hochladen im Browser auf max. 1600 px verkleinert.
 
 ## Zugriffsschutz
 

@@ -11,6 +11,7 @@
     "build": "npm run typecheck && npm run build -w client"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.117.1",
     "@netlify/database": "^1.0.0",
     "@netlify/functions": "^4.2.9",
     "zod": "^3.24.1"

@@ -22,8 +22,16 @@ export interface Cut {
   status: CutStatus;
   notes: string | null;
   created_at: string;
+  packed_on: string | null;
+  best_before: string | null;
   animal_species?: string;
   animal_date?: string;
+}
+
+export interface Settings {
+  business_name: string;
+  business_address: string;
+  shelf_life_days: number;
 }
 
 export interface Customer {

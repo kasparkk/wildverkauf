@@ -14,3 +14,88 @@ body {
     box-shadow: none !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Label sheet: Avery 3474 / Herma 4459 — 70 x 37 mm, 3 x 8 on A4.
+   Sizes are in millimetres so the print lands on the actual label positions.
+   -------------------------------------------------------------------------- */
+
+.label-sheet {
+  display: grid;
+  grid-template-columns: repeat(3, 70mm);
+  grid-auto-rows: 37mm;
+  width: 210mm;
+}
+
+.label {
+  width: 70mm;
+  height: 37mm;
+  box-sizing: border-box;
+  padding: 2.5mm 3mm;
+  display: flex;
+  align-items: flex-start;
+  gap: 2mm;
+  overflow: hidden;
+  /* Only visible on screen; the sheet itself is pre-cut. */
+  border: 0.2mm dashed #d6d3d1;
+  font-family: system-ui, sans-serif;
+  color: #000;
+  background: #fff;
+}
+
+.label-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.label-title {
+  font-size: 3.4mm;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 0.8mm;
+}
+
+.label-line {
+  font-size: 2.5mm;
+  line-height: 1.35;
+}
+
+.label-strong {
+  font-weight: 600;
+}
+
+.label-business {
+  font-size: 2.1mm;
+  line-height: 1.25;
+  margin-top: 0.8mm;
+  color: #333;
+}
+
+.label-qr {
+  width: 15mm;
+  height: 15mm;
+  flex-shrink: 0;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .label {
+    border: none;
+  }
+
+  .label-sheet {
+    page-break-inside: auto;
+  }
+
+  .label {
+    break-inside: avoid;
+  }
+}
