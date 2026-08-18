@@ -495,9 +495,24 @@ async function handleScan(req: Request): Promise<Response> {
   const parsed = scanRequestSchema.safeParse(await readBody(req));
   if (!parsed.success) return badRequest(parsed.error.flatten());
 
-  const result = await scanLabel(parsed.data.image, parsed.data.media_type);
+  let result;
+  try {
+    result = await scanLabel(parsed.data.image, parsed.data.media_type);
+  } catch (error) {
+    // Raw API errors are of no use to whoever is standing there with a camera.
+    console.error("Texterkennung fehlgeschlagen", error);
+    const status = (error as { status?: number }).status;
+    if (status === 400) {
+      return json({ error: "Das Bild konnte nicht verarbeitet werden. Bitte neu aufnehmen." }, 422);
+    }
+    if (status === 429) {
+      return json({ error: "Die Texterkennung ist gerade ausgelastet. Bitte kurz warten." }, 429);
+    }
+    return json({ error: "Die Texterkennung ist momentan nicht erreichbar." }, 502);
+  }
+
   if (!result) {
-    return json({ error: "Das Etikett konnte nicht gelesen werden." }, 422);
+    return json({ error: "Auf dem Bild war kein lesbares Etikett zu erkennen." }, 422);
   }
   return json(result);
 }
