@@ -1,9 +1,11 @@
 import ExcelJS from "exceljs";
 import { db } from "./db.mts";
 
+// Number format codes are stored with the invariant English tokens; Excel
+// shows them localised (a German Excel displays this date format as TT.MM.JJJJ).
 const EURO = '#,##0.00 "€"';
 const KG = '#,##0.000 " kg"';
-const DATE = "TT.MM.JJJJ";
+const DATE = "dd.mm.yyyy";
 
 const STATUS_LABELS: Record<string, string> = {
   available: "Verfügbar",
