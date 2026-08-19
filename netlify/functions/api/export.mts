@@ -261,17 +261,26 @@ export async function buildWorkbook(from: string | null, to: string | null): Pro
 // Delimited text (clipboard and CSV)
 // --------------------------------------------------------------------------
 
-/** German conventions: comma as decimal separator, dotted dates. */
-function formatCell(value: unknown, kind: CellKind): string {
+/**
+ * "de" writes what a person expects to read: comma decimals, dotted dates.
+ * "neutral" writes what a data connection expects: dot decimals and ISO dates,
+ * so Excel's query importer types the columns as numbers and dates by itself
+ * instead of falling back to text.
+ */
+export type Locale = "de" | "neutral";
+
+function formatCell(value: unknown, kind: CellKind, locale: Locale): string {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) {
-    const day = String(value.getUTCDate()).padStart(2, "0");
-    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
-    return `${day}.${month}.${value.getUTCFullYear()}`;
+    const iso = value.toISOString().slice(0, 10);
+    if (locale === "neutral") return iso;
+    const [year, month, day] = iso.split("-");
+    return `${day}.${month}.${year}`;
   }
   if (typeof value === "number") {
     const decimals = kind === "money" ? 2 : kind === "weight" ? 3 : 0;
-    return value.toFixed(Number.isInteger(value) && kind === "number" ? 0 : decimals).replace(".", ",");
+    const text = value.toFixed(Number.isInteger(value) && kind === "number" ? 0 : decimals);
+    return locale === "neutral" ? text : text.replace(".", ",");
   }
   return String(value);
 }
@@ -284,21 +293,27 @@ function escapeCell(text: string, delimiter: string): string {
 export function toDelimited(
   spec: SheetSpec,
   delimiter: string,
-  /**
-   * Folds line breaks inside a cell onto one line. Set for clipboard output:
-   * spreadsheets disagree on how to reassemble a quoted multi-line field when
-   * pasting, so a note with a line break could land in the wrong row. Files are
-   * parsed properly, so they keep the real line breaks.
-   */
-  collapseNewlines = false
+  options: {
+    /**
+     * Folds line breaks inside a cell onto one line. Set for clipboard output:
+     * spreadsheets disagree on how to reassemble a quoted multi-line field when
+     * pasting, so a note with a line break could land in the wrong row. Files
+     * are parsed properly, so they keep the real line breaks.
+     */
+    collapseNewlines?: boolean;
+    locale?: Locale;
+  } = {}
 ): string {
+  const { collapseNewlines = false, locale = "de" } = options;
   const cell = (value: string) =>
     escapeCell(collapseNewlines ? value.replace(/\r?\n/g, " / ") : value, delimiter);
 
   const lines = [spec.columns.map((c) => cell(c.header)).join(delimiter)];
   for (const row of spec.rows) {
     lines.push(
-      spec.columns.map((column) => cell(formatCell(row[column.key], column.kind))).join(delimiter)
+      spec.columns
+        .map((column) => cell(formatCell(row[column.key], column.kind, locale)))
+        .join(delimiter)
     );
   }
   return lines.join("\r\n");

@@ -13,6 +13,8 @@ export default function Export() {
   const [to, setTo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [linkSheet, setLinkSheet] = useState(SHEETS[0].key);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const rangeInvalid = Boolean(from && to && from > to);
 
@@ -30,6 +32,23 @@ export default function Export() {
       return;
     }
     setError(null);
+  }
+
+  /** Absolute address a spreadsheet can pull from and refresh on demand. */
+  const linkUrl = `${window.location.origin}/api/export${query({
+    format: "csv",
+    sheet: linkSheet,
+    locale: "neutral",
+  })}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(linkUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 4000);
+    } catch {
+      setError("Die Adresse konnte nicht kopiert werden – du kannst sie von Hand markieren.");
+    }
   }
 
   /** Copies the dataset as tab-separated text, which pastes into columns. */
@@ -145,6 +164,80 @@ export default function Export() {
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="bg-white rounded-lg border border-stone-200 shadow-sm">
+        <div className="px-5 py-3 border-b border-stone-200">
+          <h2 className="font-semibold">Mit Excel verbinden</h2>
+          <p className="text-sm text-stone-500 mt-0.5">
+            Excel kann die Daten selbst von einer Adresse holen. Einmal einrichten, danach genügt in
+            Excel ein Klick auf „Aktualisieren“ – ohne erneutes Herunterladen.
+          </p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label htmlFor="linkSheet" className="block text-sm font-medium mb-1">
+              Datensatz
+            </label>
+            <select
+              id="linkSheet"
+              value={linkSheet}
+              onChange={(e) => setLinkSheet(e.target.value)}
+              className="border border-stone-300 rounded-md px-3 py-2 text-sm"
+            >
+              {SHEETS.map((sheet) => (
+                <option key={sheet.key} value={sheet.key}>
+                  {sheet.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium mb-1">Adresse</p>
+            <div className="flex gap-2 items-start">
+              <code className="flex-1 text-xs bg-stone-100 rounded-md px-3 py-2 break-all font-mono">
+                {linkUrl}
+              </code>
+              <button
+                onClick={copyLink}
+                className="px-3 py-2 text-sm rounded-md border border-forest-700 text-forest-700 hover:bg-forest-50 whitespace-nowrap"
+              >
+                {linkCopied ? "Kopiert." : "Adresse kopieren"}
+              </button>
+            </div>
+          </div>
+
+          <div className="text-sm text-stone-600 space-y-3">
+            <div>
+              <p className="font-medium text-stone-900">In Excel</p>
+              <ol className="list-decimal list-inside space-y-0.5 mt-1">
+                <li>Reiter „Daten“ → „Daten abrufen“ → „Aus anderen Quellen“ → „Aus dem Web“</li>
+                <li>Adresse einfügen und bestätigen</li>
+                <li>Im Vorschaufenster auf „Laden“ klicken</li>
+                <li>
+                  Später aktualisieren: Reiter „Daten“ → „Alle aktualisieren“
+                </li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-medium text-stone-900">In Google Tabellen</p>
+              <p className="mt-1">
+                In eine leere Zelle schreiben:{" "}
+                <code className="text-xs bg-stone-100 rounded px-1.5 py-0.5 font-mono">
+                  =IMPORTDATA("…Adresse…")
+                </code>{" "}
+                – die Tabelle aktualisiert sich dann von selbst.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-stone-500 border-t border-stone-100 pt-3">
+            Die Adresse liefert die Zahlen maschinenlesbar (Punkt als Dezimalzeichen, Datum als
+            JJJJ-MM-TT), damit Excel sie beim Import als Zahl und Datum erkennt und nicht als Text.
+            Wer die Adresse kennt, kann diese Daten abrufen – behandle sie wie ein Passwort.
+          </p>
+        </div>
       </div>
     </div>
   );

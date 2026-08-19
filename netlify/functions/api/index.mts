@@ -551,17 +551,22 @@ async function handleExport(req: Request): Promise<Response> {
       );
     }
 
-    // Tab-separated text pastes straight into spreadsheet columns; CSV uses the
-    // semicolon German Excel expects, since the decimal separator is a comma.
     const isCsv = format === "csv";
-    const body = toDelimited(sheet, isCsv ? ";" : "\t", !isCsv);
+    // A data connection wants machine-readable values; a file opened by hand
+    // wants German ones. The delimiter follows: a comma is unambiguous once the
+    // decimal separator is a dot, otherwise German Excel needs the semicolon.
+    const locale = params.get("locale") === "neutral" ? "neutral" : "de";
+    const delimiter = isCsv ? (locale === "neutral" ? "," : ";") : "\t";
+    const body = toDelimited(sheet, delimiter, { collapseNewlines: !isCsv, locale });
     // The BOM keeps umlauts intact when Excel opens the file by double-click.
     const payload = isCsv ? `﻿${body}` : body;
 
     return new Response(payload, {
       headers: {
         "content-type": `text/${isCsv ? "csv" : "tab-separated-values"}; charset=utf-8`,
-        ...(isCsv
+        // A connection reads the body directly; only a manual download needs a
+        // filename, and offering one would make Excel's importer save a copy.
+        ...(isCsv && locale === "de"
           ? {
               "content-disposition": `attachment; filename="${exportFilename(from, to, "csv", sheet.key)}"`,
             }

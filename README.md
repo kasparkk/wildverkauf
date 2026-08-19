@@ -53,6 +53,7 @@ Zusätzliche Parameter für einzelne Tabellen:
 | --------- | ----- |
 | `format`  | `xlsx` (Standard), `csv`, `tsv` |
 | `sheet`   | `bestand`, `wildtiere`, `verkaeufe`, `positionen`, `kunden` |
+| `locale`  | `de` (Standard), `neutral` |
 
 Alle Formate stammen aus derselben Quelle (`collectSheets`), können also nicht
 auseinanderlaufen.
@@ -65,8 +66,28 @@ auseinanderlaufen.
 - **csv**: Semikolon als Trennzeichen und UTF-8-BOM – so öffnet deutsches Excel
   die Datei per Doppelklick korrekt, inklusive Umlauten.
 
-In den Textformaten sind Zahlen deutsch formatiert (Komma als Dezimaltrenner,
-Datum als TT.MM.JJJJ), damit Excel sie als Zahl und nicht als Text übernimmt.
+In den Textformaten sind Zahlen standardmäßig deutsch formatiert (Komma als
+Dezimaltrenner, Datum als TT.MM.JJJJ), damit Excel sie als Zahl und nicht als
+Text übernimmt.
+
+### Datenverbindung (Excel, Google Tabellen)
+
+`?format=csv&locale=neutral&sheet=…` ist für Datenverbindungen gedacht: Punkt
+als Dezimalzeichen, Datum als JJJJ-MM-TT und Komma als Trennzeichen. Damit
+typisiert Power Query die Spalten von selbst als Zahl und Datum, statt alles als
+Text zu importieren. Diese Variante wird bewusst ohne `Content-Disposition`
+ausgeliefert, sonst würde Excels Importer die Antwort als Datei speichern
+wollen.
+
+Einrichtung in Excel: Daten → Daten abrufen → Aus anderen Quellen → Aus dem Web,
+Adresse einfügen, laden. Aktualisiert wird später über „Alle aktualisieren“. In
+Google Tabellen genügt `=IMPORTDATA("…")`.
+
+Die Adressen stehen fertig auf der Export-Seite der App.
+
+**Achtung:** Die Adresse wirkt wie ein Passwort – wer sie kennt, kann die Daten
+abrufen. Wird der Passwortschutz aktiviert (siehe „Zugriffsschutz“), können
+Excel und Google Tabellen sich nicht anmelden und die Verbindung bricht ab.
 
 ## Etiketten
 
