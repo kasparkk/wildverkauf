@@ -1,0 +1,248 @@
+import ExcelJS from "exceljs";
+import { db } from "./db.mts";
+
+const EURO = '#,##0.00 "€"';
+const KG = '#,##0.000 " kg"';
+const DATE = "TT.MM.JJJJ";
+
+const STATUS_LABELS: Record<string, string> = {
+  available: "Verfügbar",
+  reserved: "Reserviert",
+  sold: "Verkauft",
+};
+
+interface Column {
+  header: string;
+  key: string;
+  width: number;
+  numFmt?: string;
+}
+
+function addSheet(book: ExcelJS.Workbook, name: string, columns: Column[], rows: unknown[]) {
+  const sheet = book.addWorksheet(name);
+  sheet.columns = columns.map(({ header, key, width }) => ({ header, key, width }));
+
+  for (const column of columns) {
+    if (column.numFmt) sheet.getColumn(column.key).numFmt = column.numFmt;
+  }
+
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE1EBDE" },
+  };
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: columns.length },
+  };
+
+  sheet.addRows(rows as any[]);
+  return sheet;
+}
+
+/** Postgres hands NUMERIC back as a string; Excel needs real numbers. */
+function num(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function date(value: unknown): Date | null {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function cutTotal(cut: any): number | null {
+  const fixed = num(cut.fixed_price);
+  if (fixed !== null) return fixed;
+  const perKg = num(cut.price_per_kg);
+  const weight = num(cut.weight_kg);
+  return perKg !== null && weight !== null ? perKg * weight : null;
+}
+
+/**
+ * Builds the workbook. `from`/`to` narrow the sales sheets only — stock and
+ * customers are always exported in full, since they describe the current state
+ * rather than a period.
+ */
+export async function buildWorkbook(from: string | null, to: string | null): Promise<ArrayBuffer> {
+  const book = new ExcelJS.Workbook();
+  book.creator = "Wildverkauf";
+  book.created = new Date();
+
+  const cuts = (await db.sql`
+    SELECT c.*, a.species AS animal_species, a.date_harvested AS animal_date
+    FROM cuts c LEFT JOIN animals a ON a.id = c.animal_id
+    ORDER BY c.id`) as any[];
+
+  addSheet(
+    book,
+    "Bestand",
+    [
+      { header: "Nr.", key: "id", width: 6 },
+      { header: "Teilstück", key: "name", width: 22 },
+      { header: "Wildart", key: "species", width: 16 },
+      { header: "Erlegt am", key: "harvested", width: 13, numFmt: DATE },
+      { header: "Gewicht", key: "weight", width: 13, numFmt: KG },
+      { header: "Preis/kg", key: "perKg", width: 13, numFmt: EURO },
+      { header: "Festpreis", key: "fixed", width: 13, numFmt: EURO },
+      { header: "Gesamtpreis", key: "total", width: 14, numFmt: EURO },
+      { header: "Status", key: "status", width: 13 },
+      { header: "Barcode", key: "barcode", width: 18 },
+      { header: "Verpackt am", key: "packed", width: 13, numFmt: DATE },
+      { header: "Haltbar bis", key: "best", width: 13, numFmt: DATE },
+      { header: "Notizen", key: "notes", width: 30 },
+    ],
+    cuts.map((cut) => ({
+      id: cut.id,
+      name: cut.name,
+      species: cut.animal_species ?? "",
+      harvested: date(cut.animal_date),
+      weight: num(cut.weight_kg),
+      perKg: num(cut.price_per_kg),
+      fixed: num(cut.fixed_price),
+      total: cutTotal(cut),
+      status: STATUS_LABELS[cut.status] ?? cut.status,
+      barcode: cut.barcode ?? "",
+      packed: date(cut.packed_on),
+      best: date(cut.best_before),
+      notes: cut.notes ?? "",
+    }))
+  );
+
+  const animals = (await db.sql`
+    SELECT a.*,
+      (SELECT COUNT(*) FROM cuts c WHERE c.animal_id = a.id) AS cut_count,
+      (SELECT COUNT(*) FROM cuts c WHERE c.animal_id = a.id AND c.status = 'available') AS cuts_available
+    FROM animals a ORDER BY a.date_harvested DESC, a.id DESC`) as any[];
+
+  addSheet(
+    book,
+    "Wildtiere",
+    [
+      { header: "Nr.", key: "id", width: 6 },
+      { header: "Wildart", key: "species", width: 16 },
+      { header: "Erlegt am", key: "harvested", width: 13, numFmt: DATE },
+      { header: "Gewicht", key: "weight", width: 13, numFmt: KG },
+      { header: "Teilstücke", key: "cuts", width: 12 },
+      { header: "davon verfügbar", key: "available", width: 16 },
+      { header: "Notizen", key: "notes", width: 30 },
+    ],
+    animals.map((animal) => ({
+      id: animal.id,
+      species: animal.species,
+      harvested: date(animal.date_harvested),
+      weight: num(animal.weight_kg),
+      cuts: num(animal.cut_count),
+      available: num(animal.cuts_available),
+      notes: animal.notes ?? "",
+    }))
+  );
+
+  const sales = (await db.sql`
+    SELECT s.*, c.name AS customer_name,
+      (SELECT COALESCE(SUM(total_price), 0) FROM sale_items WHERE sale_id = s.id) AS total
+    FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
+    WHERE (${from}::date IS NULL OR s.date >= ${from}::date)
+      AND (${to}::date IS NULL OR s.date < ${to}::date + 1)
+    ORDER BY s.date, s.id`) as any[];
+
+  addSheet(
+    book,
+    "Verkäufe",
+    [
+      { header: "Beleg-Nr.", key: "id", width: 11 },
+      { header: "Datum", key: "date", width: 13, numFmt: DATE },
+      { header: "Kunde", key: "customer", width: 24 },
+      { header: "Zahlungsart", key: "method", width: 14 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Summe", key: "total", width: 13, numFmt: EURO },
+      { header: "Notizen", key: "notes", width: 30 },
+    ],
+    sales.map((sale) => ({
+      id: sale.id,
+      date: date(sale.date),
+      customer: sale.customer_name ?? "Laufkundschaft",
+      method: sale.payment_method,
+      status: sale.payment_status === "offen" ? "Offen" : "Bezahlt",
+      total: num(sale.total),
+      notes: sale.notes ?? "",
+    }))
+  );
+
+  const items = (await db.sql`
+    SELECT si.*, s.date, s.payment_status, c.name AS customer_name
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    LEFT JOIN customers c ON c.id = s.customer_id
+    WHERE (${from}::date IS NULL OR s.date >= ${from}::date)
+      AND (${to}::date IS NULL OR s.date < ${to}::date + 1)
+    ORDER BY s.date, si.sale_id, si.id`) as any[];
+
+  addSheet(
+    book,
+    "Verkaufspositionen",
+    [
+      { header: "Beleg-Nr.", key: "saleId", width: 11 },
+      { header: "Datum", key: "date", width: 13, numFmt: DATE },
+      { header: "Kunde", key: "customer", width: 24 },
+      { header: "Artikel", key: "description", width: 26 },
+      { header: "Gewicht", key: "weight", width: 13, numFmt: KG },
+      { header: "Menge", key: "quantity", width: 10 },
+      { header: "Einzelpreis", key: "unit", width: 13, numFmt: EURO },
+      { header: "Gesamt", key: "total", width: 13, numFmt: EURO },
+    ],
+    items.map((item) => ({
+      saleId: item.sale_id,
+      date: date(item.date),
+      customer: item.customer_name ?? "Laufkundschaft",
+      description: item.description,
+      weight: num(item.weight_kg),
+      quantity: num(item.quantity),
+      unit: num(item.unit_price),
+      total: num(item.total_price),
+    }))
+  );
+
+  const customers = (await db.sql`
+    SELECT c.*,
+      (SELECT COUNT(*) FROM sales s WHERE s.customer_id = c.id) AS sale_count,
+      (SELECT COALESCE(SUM(si.total_price), 0) FROM sales s
+         JOIN sale_items si ON si.sale_id = s.id WHERE s.customer_id = c.id) AS total_spent
+    FROM customers c ORDER BY c.name`) as any[];
+
+  addSheet(
+    book,
+    "Kunden",
+    [
+      { header: "Nr.", key: "id", width: 6 },
+      { header: "Name", key: "name", width: 24 },
+      { header: "Telefon", key: "phone", width: 18 },
+      { header: "E-Mail", key: "email", width: 26 },
+      { header: "Adresse", key: "address", width: 32 },
+      { header: "Käufe", key: "count", width: 9 },
+      { header: "Umsatz", key: "spent", width: 13, numFmt: EURO },
+      { header: "Notizen", key: "notes", width: 30 },
+    ],
+    customers.map((customer) => ({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone ?? "",
+      email: customer.email ?? "",
+      address: customer.address ?? "",
+      count: num(customer.sale_count),
+      spent: num(customer.total_spent),
+      notes: customer.notes ?? "",
+    }))
+  );
+
+  return book.xlsx.writeBuffer();
+}
+
+export function exportFilename(from: string | null, to: string | null): string {
+  const range = from || to ? `_${from ?? "Anfang"}_bis_${to ?? "heute"}` : "";
+  return `Wildverkauf${range}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+}

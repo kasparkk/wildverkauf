@@ -18,6 +18,7 @@ import {
   settingsSchema,
 } from "./schemas.mts";
 import { scanConfigError, scanLabel, scanRequestSchema } from "./scan.mts";
+import { buildWorkbook, exportFilename } from "./export.mts";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   // A missing payload would serialise to an empty body and reach the client as
@@ -112,6 +113,8 @@ export default async (req: Request): Promise<Response> => {
         return await handleLabels(req);
       case "scan":
         return await handleScan(req);
+      case "export":
+        return await handleExport(req);
       default:
         return notFound();
     }
@@ -516,6 +519,34 @@ async function handleLabels(req: Request): Promise<Response> {
   }
 
   return notFound();
+}
+
+// --------------------------------------------------------------------------
+// Excel export
+// --------------------------------------------------------------------------
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+async function handleExport(req: Request): Promise<Response> {
+  if (req.method !== "GET") return notFound();
+
+  const params = new URL(req.url).searchParams;
+  const from = params.get("from");
+  const to = params.get("to");
+  for (const value of [from, to]) {
+    if (value !== null && !ISO_DATE.test(value)) {
+      return badRequest("Datum bitte als JJJJ-MM-TT angeben.");
+    }
+  }
+
+  const workbook = await buildWorkbook(from, to);
+  return new Response(workbook, {
+    headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${exportFilename(from, to)}"`,
+      "cache-control": "no-store",
+    },
+  });
 }
 
 // --------------------------------------------------------------------------

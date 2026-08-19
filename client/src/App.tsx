@@ -8,6 +8,7 @@ import Pos from "./pages/Pos";
 import SaleHistory from "./pages/SaleHistory";
 import SaleDetail from "./pages/SaleDetail";
 import Labels from "./pages/Labels";
+import ExportPage from "./pages/Export";
 import SettingsPage from "./pages/Settings";
 import Login from "./pages/Login";
 import { checkSession, logout, setUnauthorizedHandler, type SessionState } from "./lib/api";
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/verkaeufe", label: "Verkäufe" },
   { to: "/kunden", label: "Kunden" },
   { to: "/etiketten", label: "Etiketten" },
+  { to: "/export", label: "Export" },
   { to: "/einstellungen", label: "Einstellungen" },
 ];
 
@@ -93,6 +95,7 @@ export default function App() {
           <Route path="/kunden" element={<Customers />} />
           <Route path="/kunden/:id" element={<CustomerDetail />} />
           <Route path="/etiketten" element={<Labels />} />
+          <Route path="/export" element={<ExportPage />} />
           <Route path="/einstellungen" element={<SettingsPage />} />
         </Routes>
       </main>

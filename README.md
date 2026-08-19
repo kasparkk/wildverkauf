@@ -35,6 +35,21 @@ Läuft komplett auf Netlify.
 - **Etikett abfotografieren**: Fremde Etiketten (z. B. vom Zerlegebetrieb)
   werden per Texterkennung ausgelesen und füllen das Formular für ein neues
   Teilstück vor.
+- **Export**: Alle Daten als Excel-Datei (.xlsx) mit je einem Tabellenblatt für
+  Bestand, Wildtiere, Verkäufe, Verkaufspositionen und Kunden – optional auf
+  einen Zeitraum eingeschränkt.
+
+## Export
+
+`GET /api/export` liefert die Arbeitsmappe; `?from=JJJJ-MM-TT&to=JJJJ-MM-TT`
+schränkt die beiden Verkaufsblätter auf einen Zeitraum ein (beide Grenzen
+einschließlich). Bestand, Wildtiere und Kunden werden immer vollständig
+exportiert, weil sie den aktuellen Stand abbilden und keinen Zeitraum.
+
+Die Datei wird serverseitig mit ExcelJS gebaut, damit die Bibliothek nicht im
+Browser-Bundle landet. Beträge, Gewichte und Datumsangaben sind als echte
+Zahlen bzw. Datumswerte formatiert, nicht als Text – in Excel lässt sich damit
+direkt weiterrechnen.
 
 ## Etiketten
 
