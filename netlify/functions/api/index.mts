@@ -18,7 +18,7 @@ import {
   settingsSchema,
 } from "./schemas.mts";
 import { scanConfigError, scanLabel, scanRequestSchema } from "./scan.mts";
-import { buildWorkbook, exportFilename } from "./export.mts";
+import { buildWorkbook, collectSheets, exportFilename, toDelimited } from "./export.mts";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   // A missing payload would serialise to an empty body and reach the client as
@@ -539,11 +539,47 @@ async function handleExport(req: Request): Promise<Response> {
     }
   }
 
+  const format = params.get("format") ?? "xlsx";
+
+  if (format === "csv" || format === "tsv") {
+    const sheetKey = params.get("sheet");
+    const sheets = await collectSheets(from, to);
+    const sheet = sheets.find((s) => s.key === sheetKey);
+    if (!sheet) {
+      return badRequest(
+        `Unbekannter Datensatz. Möglich sind: ${sheets.map((s) => s.key).join(", ")}.`
+      );
+    }
+
+    // Tab-separated text pastes straight into spreadsheet columns; CSV uses the
+    // semicolon German Excel expects, since the decimal separator is a comma.
+    const isCsv = format === "csv";
+    const body = toDelimited(sheet, isCsv ? ";" : "\t");
+    // The BOM keeps umlauts intact when Excel opens the file by double-click.
+    const payload = isCsv ? `﻿${body}` : body;
+
+    return new Response(payload, {
+      headers: {
+        "content-type": `text/${isCsv ? "csv" : "tab-separated-values"}; charset=utf-8`,
+        ...(isCsv
+          ? {
+              "content-disposition": `attachment; filename="${exportFilename(from, to, "csv", sheet.key)}"`,
+            }
+          : {}),
+        "cache-control": "no-store",
+      },
+    });
+  }
+
+  if (format !== "xlsx") {
+    return badRequest("Format muss xlsx, csv oder tsv sein.");
+  }
+
   const workbook = await buildWorkbook(from, to);
   return new Response(workbook, {
     headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "content-disposition": `attachment; filename="${exportFilename(from, to)}"`,
+      "content-disposition": `attachment; filename="${exportFilename(from, to, "xlsx")}"`,
       "cache-control": "no-store",
     },
   });

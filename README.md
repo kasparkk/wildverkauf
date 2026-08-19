@@ -37,7 +37,8 @@ Läuft komplett auf Netlify.
   Teilstück vor.
 - **Export**: Alle Daten als Excel-Datei (.xlsx) mit je einem Tabellenblatt für
   Bestand, Wildtiere, Verkäufe, Verkaufspositionen und Kunden – optional auf
-  einen Zeitraum eingeschränkt.
+  einen Zeitraum eingeschränkt. Einzelne Tabellen lassen sich zusätzlich in die
+  Zwischenablage kopieren oder als CSV herunterladen.
 
 ## Export
 
@@ -46,10 +47,26 @@ schränkt die beiden Verkaufsblätter auf einen Zeitraum ein (beide Grenzen
 einschließlich). Bestand, Wildtiere und Kunden werden immer vollständig
 exportiert, weil sie den aktuellen Stand abbilden und keinen Zeitraum.
 
-Die Datei wird serverseitig mit ExcelJS gebaut, damit die Bibliothek nicht im
-Browser-Bundle landet. Beträge, Gewichte und Datumsangaben sind als echte
-Zahlen bzw. Datumswerte formatiert, nicht als Text – in Excel lässt sich damit
-direkt weiterrechnen.
+Zusätzliche Parameter für einzelne Tabellen:
+
+| Parameter | Werte |
+| --------- | ----- |
+| `format`  | `xlsx` (Standard), `csv`, `tsv` |
+| `sheet`   | `bestand`, `wildtiere`, `verkaeufe`, `positionen`, `kunden` |
+
+Alle Formate stammen aus derselben Quelle (`collectSheets`), können also nicht
+auseinanderlaufen.
+
+- **xlsx**: serverseitig mit ExcelJS gebaut, damit die Bibliothek nicht im
+  Browser-Bundle landet. Beträge, Gewichte und Datumsangaben sind echte Zahlen
+  bzw. Datumswerte, kein Text – in Excel lässt sich direkt weiterrechnen.
+- **tsv**: für die Zwischenablage. Tabulatoren, weil Excel eingefügten Text
+  daran in Spalten trennt; bei Kommas landet alles in einer Spalte.
+- **csv**: Semikolon als Trennzeichen und UTF-8-BOM – so öffnet deutsches Excel
+  die Datei per Doppelklick korrekt, inklusive Umlauten.
+
+In den Textformaten sind Zahlen deutsch formatiert (Komma als Dezimaltrenner,
+Datum als TT.MM.JJJJ), damit Excel sie als Zahl und nicht als Text übernimmt.
 
 ## Etiketten
 
