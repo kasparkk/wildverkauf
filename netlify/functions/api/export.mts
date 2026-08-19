@@ -281,13 +281,24 @@ function escapeCell(text: string, delimiter: string): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-export function toDelimited(spec: SheetSpec, delimiter: string): string {
-  const lines = [spec.columns.map((c) => escapeCell(c.header, delimiter)).join(delimiter)];
+export function toDelimited(
+  spec: SheetSpec,
+  delimiter: string,
+  /**
+   * Folds line breaks inside a cell onto one line. Set for clipboard output:
+   * spreadsheets disagree on how to reassemble a quoted multi-line field when
+   * pasting, so a note with a line break could land in the wrong row. Files are
+   * parsed properly, so they keep the real line breaks.
+   */
+  collapseNewlines = false
+): string {
+  const cell = (value: string) =>
+    escapeCell(collapseNewlines ? value.replace(/\r?\n/g, " / ") : value, delimiter);
+
+  const lines = [spec.columns.map((c) => cell(c.header)).join(delimiter)];
   for (const row of spec.rows) {
     lines.push(
-      spec.columns
-        .map((column) => escapeCell(formatCell(row[column.key], column.kind), delimiter))
-        .join(delimiter)
+      spec.columns.map((column) => cell(formatCell(row[column.key], column.kind))).join(delimiter)
     );
   }
   return lines.join("\r\n");

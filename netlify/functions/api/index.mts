@@ -554,7 +554,7 @@ async function handleExport(req: Request): Promise<Response> {
     // Tab-separated text pastes straight into spreadsheet columns; CSV uses the
     // semicolon German Excel expects, since the decimal separator is a comma.
     const isCsv = format === "csv";
-    const body = toDelimited(sheet, isCsv ? ";" : "\t");
+    const body = toDelimited(sheet, isCsv ? ";" : "\t", !isCsv);
     // The BOM keeps umlauts intact when Excel opens the file by double-click.
     const payload = isCsv ? `﻿${body}` : body;
 
