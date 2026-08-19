@@ -37,6 +37,17 @@ function json(data: unknown, status = 200, headers: Record<string, string> = {})
 const notFound = () => json({ error: "Nicht gefunden" }, 404);
 const badRequest = (error: unknown) => json({ error }, 400);
 
+/** Walks the error's cause chain looking for the barcode unique violation. */
+function isBarcodeConflict(error: unknown): boolean {
+  for (let current = error, depth = 0; current && depth < 5; depth++) {
+    const e = current as { code?: string; constraint?: string; message?: string; cause?: unknown };
+    if (e.code === "23505" || e.constraint === "idx_cuts_barcode") return true;
+    if (typeof e.message === "string" && e.message.includes("idx_cuts_barcode")) return true;
+    current = e.cause;
+  }
+  return false;
+}
+
 async function readBody(req: Request): Promise<unknown> {
   try {
     return await req.json();
@@ -106,13 +117,9 @@ export default async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     console.error("API-Fehler", error);
-    // A barcode may only ever point at one cut (unique index idx_cuts_barcode).
-    if (
-      (error as { code?: string }).code === "23505" &&
-      String((error as Error).message).includes("idx_cuts_barcode")
-    ) {
-      return json({ error: "Dieser Barcode ist bereits einem anderen Teilstück zugeordnet." }, 409);
-    }
+    // Backstop for two tills linking the same barcode at once: the driver wraps
+    // the Postgres error, so the whole cause chain is inspected.
+    if (isBarcodeConflict(error)) return barcodeConflict();
     return json({ error: (error as Error).message }, 500);
   }
 };
@@ -180,6 +187,22 @@ async function handleAnimals(req: Request, id: number | null): Promise<Response>
 // Cuts
 // --------------------------------------------------------------------------
 
+/**
+ * A barcode may only point at one cut. The unique index guards against races,
+ * but checking up front lets us answer with something readable instead of a
+ * driver-wrapped constraint violation.
+ */
+async function barcodeTaken(barcode: string, exceptCutId: number | null): Promise<boolean> {
+  const rows = await db.sql`
+    SELECT id FROM cuts
+    WHERE barcode = ${barcode} AND (${exceptCutId}::int IS NULL OR id <> ${exceptCutId}::int)
+    LIMIT 1`;
+  return rows.length > 0;
+}
+
+const barcodeConflict = () =>
+  json({ error: "Dieser Barcode ist bereits einem anderen Teilstück zugeordnet." }, 409);
+
 async function handleCuts(req: Request, id: number | null): Promise<Response> {
   if (req.method === "GET" && id === null) {
     const params = new URL(req.url).searchParams;
@@ -199,6 +222,7 @@ async function handleCuts(req: Request, id: number | null): Promise<Response> {
     const parsed = cutSchema.safeParse(await readBody(req));
     if (!parsed.success) return badRequest(parsed.error.flatten());
     const d = parsed.data;
+    if (d.barcode && (await barcodeTaken(d.barcode, null))) return barcodeConflict();
     const [cut] = await db.sql`
       INSERT INTO cuts (animal_id, name, weight_kg, price_per_kg, fixed_price, status, notes,
                         packed_on, best_before, barcode)
@@ -215,6 +239,7 @@ async function handleCuts(req: Request, id: number | null): Promise<Response> {
     const [existing] = await db.sql`SELECT * FROM cuts WHERE id = ${id}`;
     if (!existing) return notFound();
     const d = { ...existing, ...parsed.data } as Record<string, any>;
+    if (d.barcode && (await barcodeTaken(d.barcode, id))) return barcodeConflict();
     const [cut] = await db.sql`
       UPDATE cuts
       SET animal_id = ${d.animal_id ?? null},
