@@ -24,6 +24,7 @@ export interface Cut {
   created_at: string;
   packed_on: string | null;
   best_before: string | null;
+  barcode: string | null;
   animal_species?: string;
   animal_date?: string;
 }

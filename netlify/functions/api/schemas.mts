@@ -17,6 +17,7 @@ export const cutSchema = z.object({
   notes: z.string().nullable().optional(),
   packed_on: z.string().nullable().optional(),
   best_before: z.string().nullable().optional(),
+  barcode: z.string().trim().min(1).max(64).nullable().optional(),
 });
 
 export const settingsSchema = z.object({

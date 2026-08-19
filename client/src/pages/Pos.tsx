@@ -4,6 +4,7 @@ import { api, cutPrice, formatCurrency } from "../lib/api";
 import { Cut, Customer, Sale } from "../lib/types";
 import { CustomerForm } from "./Customers";
 import QrScanner from "../components/QrScanner";
+import Modal from "../components/Modal";
 import { parseCutQr } from "../lib/labels";
 
 interface CartItem {
@@ -29,6 +30,7 @@ export default function Pos() {
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanHint, setScanHint] = useState<string | null>(null);
+  const [unknownCode, setUnknownCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,27 +71,67 @@ export default function Pos() {
     setCart((prev) => prev.filter((i) => i.key !== key));
   }
 
-  /** Resolves a scanned label QR code to a cut and puts it in the cart. */
-  function handleScan(text: string) {
-    const cutId = parseCutQr(text);
-    if (cutId === null) {
-      setScanHint("Das ist kein Etikett aus dieser App.");
-      return;
-    }
-    if (cart.some((item) => item.cut_id === cutId)) {
-      setScanHint("Dieses Teilstück liegt bereits im Warenkorb.");
-      setShowScanner(false);
-      return;
-    }
-    const cut = availableCuts.find((c) => c.id === cutId);
+  /** Adds a scanned cut to the cart, or explains why it cannot be added. */
+  function addScannedCut(cut: Cut | undefined, fallbackLabel: string) {
     if (!cut) {
-      setScanHint(`Teilstück #${cutId} ist nicht (mehr) verfügbar.`);
-      setShowScanner(false);
+      setScanHint(`${fallbackLabel} ist nicht (mehr) verfügbar.`);
+      return;
+    }
+    if (cart.some((item) => item.cut_id === cut.id)) {
+      setScanHint("Dieses Teilstück liegt bereits im Warenkorb.");
       return;
     }
     addCut(cut);
     setScanHint(`„${cut.name}“ hinzugefügt.`);
+  }
+
+  /**
+   * Handles both kinds of code: our own label QR codes carry the cut id, any
+   * other barcode is looked up and — if unknown — offered for linking.
+   */
+  async function handleScan(text: string) {
     setShowScanner(false);
+    setScanHint(null);
+
+    const cutId = parseCutQr(text);
+    if (cutId !== null) {
+      addScannedCut(
+        availableCuts.find((c) => c.id === cutId),
+        `Teilstück #${cutId}`
+      );
+      return;
+    }
+
+    const code = text.trim();
+    try {
+      const matches = await api.get<Cut[]>(
+        `/cuts?status=available&barcode=${encodeURIComponent(code)}`
+      );
+      if (matches.length > 0) {
+        addScannedCut(
+          availableCuts.find((c) => c.id === matches[0].id) ?? matches[0],
+          matches[0].name
+        );
+        return;
+      }
+      setUnknownCode(code);
+    } catch (err: any) {
+      setScanHint(err.message);
+    }
+  }
+
+  /** Remembers the code on the chosen cut, then puts that cut in the cart. */
+  async function linkCode(cut: Cut, code: string) {
+    try {
+      await api.put(`/cuts/${cut.id}`, { barcode: code });
+      setUnknownCode(null);
+      addScannedCut(cut, cut.name);
+      setScanHint(`Barcode ${code} ist jetzt „${cut.name}“ zugeordnet.`);
+      loadCuts();
+    } catch (err: any) {
+      setScanHint(err.message);
+      setUnknownCode(null);
+    }
   }
 
   function updateItem(key: string, patch: Partial<CartItem>) {
@@ -151,7 +193,7 @@ export default function Pos() {
               }}
               className="px-3 py-2 text-sm rounded-md border border-forest-700 text-forest-700 hover:bg-forest-50 whitespace-nowrap"
             >
-              Etikett scannen
+              Code scannen
             </button>
           </div>
           {scanHint && <p className="text-sm text-stone-600">{scanHint}</p>}
@@ -319,8 +361,85 @@ export default function Pos() {
           }}
         />
       )}
-      {showScanner && <QrScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && (
+        <QrScanner title="Code scannen" onScan={handleScan} onClose={() => setShowScanner(false)} />
+      )}
+      {unknownCode && (
+        <LinkBarcodeDialog
+          code={unknownCode}
+          cuts={availableCuts.filter((cut) => !cart.some((item) => item.cut_id === cut.id))}
+          onLink={linkCode}
+          onClose={() => setUnknownCode(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function LinkBarcodeDialog({
+  code,
+  cuts,
+  onLink,
+  onClose,
+}: {
+  code: string;
+  cuts: Cut[];
+  onLink: (cut: Cut, code: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = cuts.filter(
+    (cut) =>
+      cut.name.toLowerCase().includes(search.toLowerCase()) ||
+      (cut.animal_species ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <Modal title="Barcode zuordnen" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="text-sm bg-stone-100 rounded-md px-3 py-2">
+          <p className="text-stone-500">Unbekannter Code</p>
+          <p className="font-mono font-medium text-stone-900 break-all">{code}</p>
+        </div>
+        <p className="text-sm text-stone-600">
+          Zu welchem Teilstück gehört dieser Code? Die App merkt ihn sich, damit das Teilstück beim
+          nächsten Scan direkt im Warenkorb landet.
+        </p>
+        <input
+          type="text"
+          placeholder="Teilstück suchen…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
+        />
+        <div className="max-h-64 overflow-y-auto border border-stone-200 rounded-md">
+          {filtered.map((cut) => (
+            <button
+              key={cut.id}
+              onClick={() => onLink(cut, code)}
+              className="w-full text-left px-3 py-2 border-b border-stone-100 last:border-0 hover:bg-forest-50 flex justify-between items-center"
+            >
+              <span>
+                <span className="font-medium">{cut.name}</span>
+                <span className="text-xs text-stone-500 block">
+                  {cut.animal_species ?? "Ohne Wildtier"}
+                  {cut.weight_kg != null ? ` · ${cut.weight_kg} kg` : ""}
+                </span>
+              </span>
+              <span className="text-sm">{formatCurrency(cutPrice(cut))}</span>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <p className="px-3 py-4 text-sm text-stone-400">Kein passendes Teilstück gefunden.</p>
+          )}
+        </div>
+        <div className="flex justify-end">
+          <button onClick={onClose} className="px-3 py-2 text-sm rounded-md border border-stone-300">
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

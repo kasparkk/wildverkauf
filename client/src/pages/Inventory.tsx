@@ -42,6 +42,12 @@ export default function Inventory() {
     loadCuts();
   }
 
+  async function clearBarcode(cut: Cut) {
+    if (!confirm(`Barcode ${cut.barcode} von "${cut.name}" lösen?`)) return;
+    await api.put(`/cuts/${cut.id}`, { barcode: null });
+    loadCuts();
+  }
+
   /** Photographs a foreign label and opens the cut form with what was read. */
   async function scanPhoto(file: File) {
     setScanning(true);
@@ -162,6 +168,7 @@ export default function Inventory() {
                   <th className="px-4 py-2 font-medium">Wildtier</th>
                   <th className="px-4 py-2 font-medium">Gewicht</th>
                   <th className="px-4 py-2 font-medium">Preis</th>
+                  <th className="px-4 py-2 font-medium">Barcode</th>
                   <th className="px-4 py-2 font-medium">Status</th>
                   <th className="px-4 py-2 font-medium"></th>
                 </tr>
@@ -175,6 +182,23 @@ export default function Inventory() {
                     </td>
                     <td className="px-4 py-2">{cut.weight_kg != null ? `${cut.weight_kg} kg` : "-"}</td>
                     <td className="px-4 py-2">{formatCurrency(cutPrice(cut))}</td>
+                    <td className="px-4 py-2">
+                      {cut.barcode ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="font-mono text-xs">{cut.barcode}</span>
+                          <button
+                            onClick={() => clearBarcode(cut)}
+                            className="text-stone-400 hover:text-red-600"
+                            title="Barcode lösen"
+                            aria-label={`Barcode von ${cut.name} lösen`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="text-stone-300">–</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2">
                       <select
                         value={cut.status}
@@ -195,7 +219,7 @@ export default function Inventory() {
                 ))}
                 {cuts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-stone-400">
+                    <td colSpan={7} className="px-4 py-6 text-center text-stone-400">
                       Keine Teilstücke gefunden.
                     </td>
                   </tr>

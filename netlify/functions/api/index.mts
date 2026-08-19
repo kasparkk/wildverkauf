@@ -106,6 +106,13 @@ export default async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     console.error("API-Fehler", error);
+    // A barcode may only ever point at one cut (unique index idx_cuts_barcode).
+    if (
+      (error as { code?: string }).code === "23505" &&
+      String((error as Error).message).includes("idx_cuts_barcode")
+    ) {
+      return json({ error: "Dieser Barcode ist bereits einem anderen Teilstück zugeordnet." }, 409);
+    }
     return json({ error: (error as Error).message }, 500);
   }
 };
@@ -175,12 +182,15 @@ async function handleAnimals(req: Request, id: number | null): Promise<Response>
 
 async function handleCuts(req: Request, id: number | null): Promise<Response> {
   if (req.method === "GET" && id === null) {
-    const status = new URL(req.url).searchParams.get("status");
+    const params = new URL(req.url).searchParams;
+    const status = params.get("status");
+    const barcode = params.get("barcode");
     const rows = await db.sql`
       SELECT c.*, a.species AS animal_species, a.date_harvested AS animal_date
       FROM cuts c
       LEFT JOIN animals a ON a.id = c.animal_id
       WHERE (${status}::text IS NULL OR c.status = ${status}::text)
+        AND (${barcode}::text IS NULL OR c.barcode = ${barcode}::text)
       ORDER BY c.created_at DESC, c.id DESC`;
     return json(normalizeAll(rows));
   }
@@ -191,10 +201,10 @@ async function handleCuts(req: Request, id: number | null): Promise<Response> {
     const d = parsed.data;
     const [cut] = await db.sql`
       INSERT INTO cuts (animal_id, name, weight_kg, price_per_kg, fixed_price, status, notes,
-                        packed_on, best_before)
+                        packed_on, best_before, barcode)
       VALUES (${d.animal_id ?? null}, ${d.name}, ${d.weight_kg ?? null}, ${d.price_per_kg ?? null},
               ${d.fixed_price ?? null}, ${d.status ?? "available"}, ${d.notes ?? null},
-              ${d.packed_on ?? null}, ${d.best_before ?? null})
+              ${d.packed_on ?? null}, ${d.best_before ?? null}, ${d.barcode ?? null})
       RETURNING *`;
     return json(normalize(cut), 201);
   }
@@ -215,7 +225,8 @@ async function handleCuts(req: Request, id: number | null): Promise<Response> {
           status = ${d.status},
           notes = ${d.notes ?? null},
           packed_on = ${d.packed_on ?? null},
-          best_before = ${d.best_before ?? null}
+          best_before = ${d.best_before ?? null},
+          barcode = ${d.barcode ?? null}
       WHERE id = ${id}
       RETURNING *`;
     return json(normalize(cut));

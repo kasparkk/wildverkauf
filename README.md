@@ -28,8 +28,10 @@ Läuft komplett auf Netlify.
   (70 × 37 mm, 24 pro Bogen – z. B. Herma 4459 / Avery 3474). Auf dem Etikett
   stehen Wildart, Teilstück, Gewicht, Preis, Erlegungs-, Verpackungs- und
   Mindesthaltbarkeitsdatum, die Betriebsangaben und ein QR-Code.
-- **Etikett scannen**: Im Verkauf lässt sich der QR-Code eines selbst gedruckten
-  Etiketts mit der Kamera einlesen; das Teilstück landet direkt im Warenkorb.
+- **Code scannen**: Im Verkauf liest die Kamera sowohl den QR-Code eigener
+  Etiketten als auch gängige Strichcodes (EAN-13, EAN-8, UPC, Code 128,
+  Code 39, ITF). Ein unbekannter Strichcode kann einmalig einem Teilstück
+  zugeordnet werden und wird ab dann direkt erkannt.
 - **Etikett abfotografieren**: Fremde Etiketten (z. B. vom Zerlegebetrieb)
   werden per Texterkennung ausgelesen und füllen das Formular für ein neues
   Teilstück vor.
@@ -44,6 +46,18 @@ Skalierung auf 100 % stehen, sonst verrutschen die Etiketten.
 
 Der QR-Code enthält `wv:cut:<id>` – also nur die interne Nummer des Teilstücks,
 keine Kundendaten.
+
+## Codes scannen
+
+Der Scanner nutzt die im Browser eingebaute Erkennung (`BarcodeDetector`), wo
+es sie gibt. Safari auf dem iPhone hat sie nicht; dort wird ZXing nachgeladen –
+erst beim Öffnen des Scanners, damit es den normalen Seitenaufruf nicht
+verlangsamt.
+
+Fremde Strichcodes werden über die Spalte `cuts.barcode` einem Teilstück
+zugeordnet. Ein Code kann immer nur zu einem Teilstück gehören (eindeutiger
+Index `idx_cuts_barcode`); ein Zweitversuch wird mit einer entsprechenden
+Meldung abgelehnt. Zuordnungen lassen sich im Bestand wieder lösen.
 
 ## Texterkennung (optional)
 
