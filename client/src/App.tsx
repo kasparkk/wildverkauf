@@ -12,6 +12,7 @@ import ExportPage from "./pages/Export";
 import SettingsPage from "./pages/Settings";
 import Login from "./pages/Login";
 import { checkSession, logout, setUnauthorizedHandler, type SessionState } from "./lib/api";
+import { BegriffeProvider, useBegriffe } from "./lib/begriffe";
 
 const navItems = [
   { to: "/", label: "Übersicht", end: true },
@@ -43,6 +44,24 @@ export default function App() {
     setSession({ authenticated: false, protected: true });
   }, []);
 
+  return (
+    <BegriffeProvider angemeldet={!!session?.authenticated}>
+      <Inhalt session={session} setSession={setSession} handleLogout={handleLogout} />
+    </BegriffeProvider>
+  );
+}
+
+function Inhalt({
+  session,
+  setSession,
+  handleLogout,
+}: {
+  session: SessionState | null;
+  setSession: (s: SessionState) => void;
+  handleLogout: () => void;
+}) {
+  const { b } = useBegriffe();
+
   if (session === null) {
     return <div className="min-h-screen flex items-center justify-center text-stone-500">Lade…</div>;
   }
@@ -56,7 +75,7 @@ export default function App() {
       <aside className="no-print bg-forest-800 text-forest-50 md:w-56 md:min-h-screen md:sticky md:top-0 flex flex-col">
         <div className="p-4 border-b border-forest-700 flex items-center gap-2.5">
           <img src="/icon.svg" alt="" className="w-8 h-8 rounded-lg shrink-0" />
-          <h1 className="text-xl font-bold tracking-tight">Wildverkauf</h1>
+          <h1 className="text-xl font-bold tracking-tight">{b.app}</h1>
         </div>
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible md:flex-1">
           {navItems.map((item) => (

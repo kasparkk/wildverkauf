@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { login } from "../lib/api";
+import { useBegriffe } from "../lib/begriffe";
 
 export default function Login({ onSuccess }: { onSuccess: () => void }) {
+  const { b } = useBegriffe();
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
       >
         <div className="text-center">
           <img src="/icon.svg" alt="" className="w-16 h-16 rounded-2xl mx-auto mb-3" />
-          <h1 className="text-2xl font-bold">Wildverkauf</h1>
+          <h1 className="text-2xl font-bold">{b.app}</h1>
           <p className="text-sm text-stone-500 mt-1">Bitte Passwort eingeben.</p>
         </div>
         <div>
