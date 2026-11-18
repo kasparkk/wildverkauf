@@ -24,6 +24,8 @@ export const settingsSchema = z.object({
   business_name: z.string().nullable().optional(),
   business_address: z.string().nullable().optional(),
   shelf_life_days: z.number().int().positive().nullable().optional(),
+  // Begriffe der App (Wildtier/Teilstueck oder Charge/Artikel ...) als JSON-Text.
+  begriffe: z.string().max(20000).nullable().optional(),
 });
 
 /** Stamps packaging and best-before dates onto the cuts being labelled. */

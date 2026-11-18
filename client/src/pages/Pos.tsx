@@ -6,6 +6,7 @@ import { CustomerForm } from "./Customers";
 import QrScanner from "../components/QrScanner";
 import Modal from "../components/Modal";
 import { parseCutQr } from "../lib/labels";
+import { useBegriffe } from "../lib/begriffe";
 
 interface CartItem {
   key: string;
@@ -17,6 +18,7 @@ interface CartItem {
 }
 
 export default function Pos() {
+  const { b } = useBegriffe();
   const navigate = useNavigate();
   const [availableCuts, setAvailableCuts] = useState<Cut[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -78,7 +80,7 @@ export default function Pos() {
       return;
     }
     if (cart.some((item) => item.cut_id === cut.id)) {
-      setScanHint("Dieses Teilstück liegt bereits im Warenkorb.");
+      setScanHint("Das liegt bereits im Warenkorb.");
       return;
     }
     addCut(cut);
@@ -97,7 +99,7 @@ export default function Pos() {
     if (cutId !== null) {
       addScannedCut(
         availableCuts.find((c) => c.id === cutId),
-        `Teilstück #${cutId}`
+        `${b.stueck} #${cutId}`
       );
       return;
     }
@@ -173,7 +175,7 @@ export default function Pos() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-stone-900">Verkauf</h1>
-        <p className="text-stone-500">Teilstücke auswählen und Verkauf abschließen.</p>
+        <p className="text-stone-500">{b.stuecke} auswählen und Verkauf abschließen.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -181,7 +183,7 @@ export default function Pos() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Teilstück suchen…"
+              placeholder={`${b.stueck} suchen…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 border border-stone-300 rounded-md px-3 py-2 text-sm"
@@ -207,7 +209,7 @@ export default function Pos() {
                 <div>
                   <div className="font-medium">{cut.name}</div>
                   <div className="text-xs text-stone-500">
-                    {cut.animal_species ?? "Ohne Wildtier"}
+                    {cut.animal_species ?? "–"}
                     {cut.weight_kg != null ? ` · ${cut.weight_kg} kg` : ""}
                   </div>
                 </div>
@@ -215,7 +217,7 @@ export default function Pos() {
               </button>
             ))}
             {filteredCuts.length === 0 && (
-              <p className="p-4 text-stone-400 text-sm">Keine verfügbaren Teilstücke gefunden.</p>
+              <p className="p-4 text-stone-400 text-sm">Keine verfügbaren {b.stuecke} gefunden.</p>
             )}
           </div>
           <button
@@ -387,6 +389,7 @@ function LinkBarcodeDialog({
   onLink: (cut: Cut, code: string) => void;
   onClose: () => void;
 }) {
+  const { b } = useBegriffe();
   const [search, setSearch] = useState("");
   const filtered = cuts.filter(
     (cut) =>
@@ -402,12 +405,12 @@ function LinkBarcodeDialog({
           <p className="font-mono font-medium text-stone-900 break-all">{code}</p>
         </div>
         <p className="text-sm text-stone-600">
-          Zu welchem Teilstück gehört dieser Code? Die App merkt ihn sich, damit das Teilstück beim
+          Zu welchem Eintrag ({b.stueck}) gehört dieser Code? Die App merkt ihn sich, damit er beim
           nächsten Scan direkt im Warenkorb landet.
         </p>
         <input
           type="text"
-          placeholder="Teilstück suchen…"
+          placeholder={`${b.stueck} suchen…`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
@@ -422,7 +425,7 @@ function LinkBarcodeDialog({
               <span>
                 <span className="font-medium">{cut.name}</span>
                 <span className="text-xs text-stone-500 block">
-                  {cut.animal_species ?? "Ohne Wildtier"}
+                  {cut.animal_species ?? "–"}
                   {cut.weight_kg != null ? ` · ${cut.weight_kg} kg` : ""}
                 </span>
               </span>
@@ -430,7 +433,7 @@ function LinkBarcodeDialog({
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="px-3 py-4 text-sm text-stone-400">Kein passendes Teilstück gefunden.</p>
+            <p className="px-3 py-4 text-sm text-stone-400">Nichts Passendes gefunden.</p>
           )}
         </div>
         <div className="flex justify-end">

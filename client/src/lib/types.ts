@@ -33,6 +33,7 @@ export interface Settings {
   business_name: string;
   business_address: string;
   shelf_life_days: number;
+  begriffe?: string;
 }
 
 export interface Customer {

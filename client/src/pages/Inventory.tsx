@@ -4,10 +4,12 @@ import { Animal, Cut, CutStatus } from "../lib/types";
 import Modal from "../components/Modal";
 import StatusBadge from "../components/StatusBadge";
 import { LabelScan, downscaleToBase64 } from "../lib/scan";
+import { useBegriffe } from "../lib/begriffe";
 
 type Tab = "cuts" | "animals";
 
 export default function Inventory() {
+  const { b } = useBegriffe();
   const [tab, setTab] = useState<Tab>("cuts");
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [cuts, setCuts] = useState<Cut[]>([]);
@@ -37,7 +39,7 @@ export default function Inventory() {
   }
 
   async function deleteCut(cut: Cut) {
-    if (!confirm(`Teilstück "${cut.name}" wirklich löschen?`)) return;
+    if (!confirm(`${b.stueck} "${cut.name}" wirklich löschen?`)) return;
     await api.del(`/cuts/${cut.id}`);
     loadCuts();
   }
@@ -66,7 +68,7 @@ export default function Inventory() {
   }
 
   async function deleteAnimal(animal: Animal) {
-    if (!confirm(`Wildtier "${animal.species}" wirklich löschen? Zugehörige Teilstücke bleiben erhalten.`)) return;
+    if (!confirm(`${b.gruppe} "${animal.species}" wirklich löschen? Zugehörige ${b.stuecke} bleiben erhalten.`)) return;
     await api.del(`/animals/${animal.id}`);
     loadAnimals();
   }
@@ -76,14 +78,14 @@ export default function Inventory() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Bestand</h1>
-          <p className="text-stone-500">Wildtiere und Teilstücke verwalten.</p>
+          <p className="text-stone-500">{b.gruppen} und {b.stuecke} verwalten.</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowAnimalForm(true)}
             className="px-3 py-2 text-sm rounded-md border border-forest-700 text-forest-700 hover:bg-forest-50"
           >
-            + Wildtier
+            + {b.gruppe}
           </button>
           <button
             onClick={() => photoInput.current?.click()}
@@ -99,7 +101,7 @@ export default function Inventory() {
             }}
             className="px-3 py-2 text-sm rounded-md bg-forest-700 text-white hover:bg-forest-800"
           >
-            + Teilstück
+            + {b.stueck}
           </button>
         </div>
       </div>
@@ -130,7 +132,7 @@ export default function Inventory() {
             tab === "cuts" ? "border-forest-700 text-forest-800" : "border-transparent text-stone-500"
           }`}
         >
-          Teilstücke ({cuts.length})
+          {b.stuecke} ({cuts.length})
         </button>
         <button
           onClick={() => setTab("animals")}
@@ -138,7 +140,7 @@ export default function Inventory() {
             tab === "animals" ? "border-forest-700 text-forest-800" : "border-transparent text-stone-500"
           }`}
         >
-          Wildtiere ({animals.length})
+          {b.gruppen} ({animals.length})
         </button>
       </div>
 
@@ -164,8 +166,8 @@ export default function Inventory() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-stone-500 border-b border-stone-200">
-                  <th className="px-4 py-2 font-medium">Teilstück</th>
-                  <th className="px-4 py-2 font-medium">Wildtier</th>
+                  <th className="px-4 py-2 font-medium">{b.stueck}</th>
+                  <th className="px-4 py-2 font-medium">{b.gruppe}</th>
                   <th className="px-4 py-2 font-medium">Gewicht</th>
                   <th className="px-4 py-2 font-medium">Preis</th>
                   <th className="px-4 py-2 font-medium">Barcode</th>
@@ -220,7 +222,7 @@ export default function Inventory() {
                 {cuts.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-6 text-center text-stone-400">
-                      Keine Teilstücke gefunden.
+                      Keine {b.stuecke} gefunden.
                     </td>
                   </tr>
                 )}
@@ -235,10 +237,10 @@ export default function Inventory() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-stone-500 border-b border-stone-200">
-                <th className="px-4 py-2 font-medium">Wildart</th>
-                <th className="px-4 py-2 font-medium">Erlegt am</th>
+                <th className="px-4 py-2 font-medium">{b.art}</th>
+                <th className="px-4 py-2 font-medium">{b.datum}</th>
                 <th className="px-4 py-2 font-medium">Gewicht</th>
-                <th className="px-4 py-2 font-medium">Teilstücke</th>
+                <th className="px-4 py-2 font-medium">{b.stuecke}</th>
                 <th className="px-4 py-2 font-medium">Notizen</th>
                 <th className="px-4 py-2 font-medium"></th>
               </tr>
@@ -263,7 +265,7 @@ export default function Inventory() {
               {animals.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-6 text-center text-stone-400">
-                    Keine Wildtiere erfasst.
+                    Keine {b.gruppen} erfasst.
                   </td>
                 </tr>
               )}
@@ -301,7 +303,8 @@ export default function Inventory() {
 }
 
 function AnimalForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [species, setSpecies] = useState("Reh");
+  const { b } = useBegriffe();
+  const [species, setSpecies] = useState(b.arten[0] ?? "");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [weight, setWeight] = useState("");
   const [notes, setNotes] = useState("");
@@ -328,24 +331,34 @@ function AnimalForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   }
 
   return (
-    <Modal title="Neues Wildtier" onClose={onClose}>
+    <Modal title={`${b.gruppe} anlegen`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Wildart</label>
-          <select
-            value={species}
-            onChange={(e) => setSpecies(e.target.value)}
-            className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
-          >
-            {["Reh", "Rothirsch", "Wildschwein", "Hase", "Fasan", "Ente", "Sonstiges"].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <label className="block text-sm font-medium mb-1">{b.art}</label>
+          {b.arten.length > 0 ? (
+            <select
+              value={species}
+              onChange={(e) => setSpecies(e.target.value)}
+              className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
+            >
+              {b.arten.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={species}
+              onChange={(e) => setSpecies(e.target.value)}
+              required
+              className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
+            />
+          )}
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Erlegt am</label>
+          <label className="block text-sm font-medium mb-1">{b.datum}</label>
           <input
             type="date"
             value={date}
@@ -355,7 +368,7 @@ function AnimalForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Wildbretgewicht (kg)</label>
+          <label className="block text-sm font-medium mb-1">{b.gruppenGewicht} (kg)</label>
           <input
             type="number"
             step="0.1"
@@ -391,16 +404,7 @@ function AnimalForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   );
 }
 
-const CUT_PRESETS: Record<string, string[]> = {
-  Edelteile: ["Rücken", "Filet", "Keule", "Blatt (Schulter)", "Nuss", "Oberschale"],
-  Verarbeitet: ["Gulasch", "Braten", "Ragout", "Geschnetzeltes", "Hackfleisch"],
-  Wurst: ["Bratwurst", "Salami", "Leberwurst"],
-  Sonstiges: ["Rippchen", "Suppenknochen", "Leber", "Ganzes Tier", "Hälfte"],
-};
-
 const CUSTOM_NAME = "__custom__";
-
-const ALL_PRESETS = Object.values(CUT_PRESETS).flat();
 
 function CutForm({
   animals,
@@ -413,6 +417,9 @@ function CutForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { b } = useBegriffe();
+  const CUT_PRESETS = b.stueckVorschlaege;
+  const ALL_PRESETS = Object.values(CUT_PRESETS).flat();
   // A scanned name only preselects the dropdown when it matches a preset,
   // otherwise it lands in the free-text field so nothing gets silently changed.
   const scannedName = prefill?.cut_name?.trim() ?? "";
@@ -464,7 +471,7 @@ function CutForm({
   }
 
   return (
-    <Modal title="Neues Teilstück" onClose={onClose}>
+    <Modal title={`${b.stueck} anlegen`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {prefill && (
           <div className="text-sm bg-forest-50 border border-forest-200 rounded-md px-3 py-2">
@@ -473,7 +480,7 @@ function CutForm({
               Bitte kurz prüfen – die Texterkennung liegt nicht immer richtig.
             </p>
             {prefill.species && (
-              <p className="text-forest-700 mt-1">Erkannte Wildart: {prefill.species}</p>
+              <p className="text-forest-700 mt-1">Erkannt ({b.art}): {prefill.species}</p>
             )}
           </div>
         )}
@@ -506,19 +513,19 @@ function CutForm({
               onChange={(e) => setCustomName(e.target.value)}
               required
               autoFocus
-              placeholder="z. B. Rehrücken am Knochen"
+              placeholder="Bezeichnung"
               className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm mt-2"
             />
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Wildtier (optional)</label>
+          <label className="block text-sm font-medium mb-1">{b.gruppe} (optional)</label>
           <select
             value={animalId}
             onChange={(e) => setAnimalId(e.target.value)}
             className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
           >
-            <option value="">Kein Wildtier zugeordnet</option>
+            <option value="">– keine Zuordnung –</option>
             {animals.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.species} – {formatDate(a.date_harvested)}

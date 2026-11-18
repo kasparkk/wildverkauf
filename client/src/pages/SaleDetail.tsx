@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, formatCurrency, formatDate } from "../lib/api";
 import { Sale } from "../lib/types";
 import StatusBadge from "../components/StatusBadge";
+import { useBegriffe } from "../lib/begriffe";
 
 export default function SaleDetail() {
+  const { b } = useBegriffe();
   const { id } = useParams();
   const navigate = useNavigate();
   const [sale, setSale] = useState<Sale | null>(null);
@@ -25,7 +27,7 @@ export default function SaleDetail() {
 
   async function cancelSale() {
     if (!sale) return;
-    if (!confirm("Verkauf wirklich stornieren? Die Teilstücke werden wieder als verfügbar markiert.")) return;
+    if (!confirm(`Verkauf wirklich stornieren? Die verkauften ${b.stuecke} werden wieder als verfügbar markiert.`)) return;
     await api.del(`/sales/${sale.id}`);
     navigate("/verkaeufe");
   }
@@ -66,7 +68,7 @@ export default function SaleDetail() {
           <div className="flex items-center gap-2.5">
             <img src="/icon.svg" alt="" className="w-9 h-9 rounded-lg" />
             <div>
-              <h1 className="text-xl font-bold">Wildverkauf</h1>
+              <h1 className="text-xl font-bold">{b.app}</h1>
               <p className="text-sm text-stone-500">Beleg #{sale.id}</p>
             </div>
           </div>

@@ -1,14 +1,17 @@
 import { useState } from "react";
+import { useBegriffe, type Begriffe } from "../lib/begriffe";
 
-const SHEETS = [
-  { key: "bestand", name: "Bestand", detail: "Alle Teilstücke mit Preis, Status, Barcode und Daten" },
-  { key: "wildtiere", name: "Wildtiere", detail: "Erlegte Tiere mit Anzahl der Teilstücke" },
+const sheetsFuer = (b: Begriffe) => [
+  { key: "bestand", name: "Bestand", detail: `Alle ${b.stuecke} mit Preis, Status, Barcode und Daten` },
+  { key: "wildtiere", name: b.gruppen, detail: `${b.gruppen} mit Anzahl der ${b.stuecke}` },
   { key: "verkaeufe", name: "Verkäufe", detail: "Belege mit Kunde, Zahlungsart und Summe" },
   { key: "positionen", name: "Verkaufspositionen", detail: "Jede einzelne verkaufte Position" },
   { key: "kunden", name: "Kunden", detail: "Kontaktdaten mit Anzahl Käufe und Umsatz" },
 ];
 
 export default function Export() {
+  const { b } = useBegriffe();
+  const SHEETS = sheetsFuer(b);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [error, setError] = useState<string | null>(null);

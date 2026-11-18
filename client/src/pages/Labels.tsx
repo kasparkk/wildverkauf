@@ -8,8 +8,10 @@ import {
   qrDataUrl,
   today,
 } from "../lib/labels";
+import { useBegriffe } from "../lib/begriffe";
 
 export default function Labels() {
+  const { b } = useBegriffe();
   const [cuts, setCuts] = useState<Cut[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -86,7 +88,7 @@ export default function Labels() {
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Etiketten</h1>
           <p className="text-stone-500">
-            Teilstücke auswählen und Etiketten auf A4-Bögen drucken ({LABEL_SHEET.widthMm} ×{" "}
+            {b.stuecke} auswählen und Etiketten auf A4-Bögen drucken ({LABEL_SHEET.widthMm} ×{" "}
             {LABEL_SHEET.heightMm} mm, {LABELS_PER_SHEET} pro Bogen).
           </p>
         </div>
@@ -149,8 +151,8 @@ export default function Labels() {
                     aria-label="Alle auswählen"
                   />
                 </th>
-                <th className="px-4 py-2 font-medium">Teilstück</th>
-                <th className="px-4 py-2 font-medium">Wildart</th>
+                <th className="px-4 py-2 font-medium">{b.stueck}</th>
+                <th className="px-4 py-2 font-medium">{b.art}</th>
                 <th className="px-4 py-2 font-medium">Gewicht</th>
                 <th className="px-4 py-2 font-medium">Preis</th>
                 <th className="px-4 py-2 font-medium">Zuletzt etikettiert</th>
@@ -179,7 +181,7 @@ export default function Labels() {
               {cuts.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-6 text-center text-stone-400">
-                    Keine Teilstücke im Bestand.
+                    Keine {b.stuecke} im Bestand.
                   </td>
                 </tr>
               )}
@@ -208,6 +210,7 @@ function LabelSheet({
   packedOn: string;
   bestBefore: string;
 }) {
+  const { b } = useBegriffe();
   return (
     <div className="label-sheet">
       {cuts.map((cut) => (
@@ -222,10 +225,10 @@ function LabelSheet({
               {cut.weight_kg != null ? " · " : ""}
               {formatCurrency(cutPrice(cut))}
             </div>
-            {cut.animal_date && <div className="label-line">Erlegt: {formatDate(cut.animal_date)}</div>}
+            {cut.animal_date && <div className="label-line">{b.datum}: {formatDate(cut.animal_date)}</div>}
             <div className="label-line">Verpackt: {formatDate(packedOn)}</div>
             <div className="label-line label-strong">Mindestens haltbar bis: {formatDate(bestBefore)}</div>
-            <div className="label-line">Kühl lagern bei max. 7 °C</div>
+            {b.lagerHinweis && <div className="label-line">{b.lagerHinweis}</div>}
             <div className="label-business">
               {settings.business_name}
               {settings.business_address ? `, ${settings.business_address.replace(/\n/g, ", ")}` : ""}

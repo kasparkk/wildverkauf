@@ -4,8 +4,10 @@ import { api, formatCurrency, formatDate } from "../lib/api";
 import { Stats } from "../lib/types";
 import StatCard from "../components/StatCard";
 import StatusBadge from "../components/StatusBadge";
+import { useBegriffe } from "../lib/begriffe";
 
 export default function Dashboard() {
+  const { b } = useBegriffe();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +32,7 @@ export default function Dashboard() {
         <StatCard label="Lagerwert (verfügbar)" value={formatCurrency(stats.inventory_value)} />
         <StatCard label="Umsatz diesen Monat" value={formatCurrency(stats.revenue_this_month)} />
         <StatCard label="Offene Zahlungen" value={formatCurrency(stats.open_payments)} />
-        <StatCard label="Kunden" value={String(stats.customer_count)} hint={`${stats.animal_count} erfasste Tiere`} />
+        <StatCard label="Kunden" value={String(stats.customer_count)} hint={`${stats.animal_count} ${b.gruppen}`} />
       </div>
 
       <div className="grid grid-cols-3 gap-4">
