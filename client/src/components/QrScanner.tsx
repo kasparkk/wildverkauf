@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SCAN_FORMATS, decoderReady, hasNativeDetector } from "../lib/barcode";
+import { kamera } from "bausteine/kamera";
 
 /**
  * Scans QR codes and common retail barcodes from the rear camera. Uses the
@@ -20,71 +21,73 @@ export default function QrScanner({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
     let frame = 0;
     let stopped = false;
+    let schleife = false; // Erkennung nur einmal starten, auch nach einem Kamera-Neustart
 
-    async function start() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
-        const video = videoRef.current;
-        if (!video || stopped) return;
-        video.srcObject = stream;
-        await video.play();
+    async function erkennen() {
+      const Detector = (window as any).BarcodeDetector;
+      const detector = hasNativeDetector() ? new Detector({ formats: [...SCAN_FORMATS] }) : null;
+      // Fetched only where the browser brings no detector of its own.
+      const decode = detector ? null : await decoderReady();
+      if (stopped) return;
 
-        const Detector = (window as any).BarcodeDetector;
-        const detector = hasNativeDetector() ? new Detector({ formats: [...SCAN_FORMATS] }) : null;
-        // Fetched only where the browser brings no detector of its own.
-        const decode = detector ? null : await decoderReady();
-        if (stopped) return;
+      const tick = async () => {
+        if (stopped || !videoRef.current) return;
+        const v = videoRef.current;
 
-        const tick = async () => {
-          if (stopped || !videoRef.current) return;
-          const v = videoRef.current;
-
-          if (v.readyState === v.HAVE_ENOUGH_DATA) {
-            try {
-              if (detector) {
-                const codes = await detector.detect(v);
-                if (codes.length > 0 && codes[0].rawValue) {
-                  onScan(codes[0].rawValue);
-                  return;
-                }
-              } else if (decode) {
-                const canvas = canvasRef.current!;
-                canvas.width = v.videoWidth;
-                canvas.height = v.videoHeight;
-                const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-                ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-                const found = decode(ctx.getImageData(0, 0, canvas.width, canvas.height));
-                if (found) {
-                  onScan(found);
-                  return;
-                }
+        if (v.readyState === v.HAVE_ENOUGH_DATA) {
+          try {
+            if (detector) {
+              const codes = await detector.detect(v);
+              if (codes.length > 0 && codes[0].rawValue) {
+                onScan(codes[0].rawValue);
+                return;
               }
-            } catch {
-              // A single unreadable frame is normal; keep scanning.
+            } else if (decode) {
+              const canvas = canvasRef.current!;
+              canvas.width = v.videoWidth;
+              canvas.height = v.videoHeight;
+              const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+              ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+              const found = decode(ctx.getImageData(0, 0, canvas.width, canvas.height));
+              if (found) {
+                onScan(found);
+                return;
+              }
             }
+          } catch {
+            // A single unreadable frame is normal; keep scanning.
           }
-          frame = requestAnimationFrame(tick);
-        };
+        }
         frame = requestAnimationFrame(tick);
-      } catch (err: any) {
-        setError(
-          err?.name === "NotAllowedError"
-            ? "Kein Kamerazugriff. Bitte in den Browser-Einstellungen erlauben."
-            : "Kamera konnte nicht gestartet werden."
-        );
-      }
+      };
+      frame = requestAnimationFrame(tick);
     }
 
-    start();
+    // Kamera ueber den Baustein "kamera": Rueckkamera, sauberes Ausschalten,
+    // Neustart nach dem Hintergrund (Android).
+    const sucher = kamera(() => videoRef.current, {
+      aenderung: (zustand, fehler) => {
+        if (zustand === "nein") {
+          setError(
+            fehler?.name === "NotAllowedError"
+              ? "Kein Kamerazugriff. Bitte in den Browser-Einstellungen erlauben."
+              : "Kamera konnte nicht gestartet werden."
+          );
+          return;
+        }
+        if (!schleife) {
+          schleife = true;
+          erkennen().catch(() => setError("Kamera konnte nicht gestartet werden."));
+        }
+      },
+    });
+
     return () => {
       stopped = true;
       cancelAnimationFrame(frame);
-      stream?.getTracks().forEach((track) => track.stop());
+      sucher.stop();
     };
   }, [onScan]);
 

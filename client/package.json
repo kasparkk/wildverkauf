@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@zxing/library": "^0.21.3",
+    "bausteine": "https://codeload.github.com/kasparkk/bausteine/tar.gz/322e3f400cb44702f9724100b6b1bf877f325b4e",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
