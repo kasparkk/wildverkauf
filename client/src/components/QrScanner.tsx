@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { SCAN_FORMATS, decoderReady, hasNativeDetector } from "../lib/barcode";
 import { kamera } from "bausteine/kamera";
 
+const DECODE_INTERVAL_MS = 100;
+const MAX_DECODE_WIDTH = 960;
+// Region of the square preview that is decoded: slightly larger than the white frame.
+const ROI = { x: 0.05, y: 0.25, w: 0.9, h: 0.5 };
+
 /**
  * Scans QR codes and common retail barcodes from the rear camera. Uses the
  * browser's native BarcodeDetector where available and falls back to ZXing
@@ -24,6 +29,7 @@ export default function QrScanner({
     let frame = 0;
     let stopped = false;
     let schleife = false; // Erkennung nur einmal starten, auch nach einem Kamera-Neustart
+    let lastDecode = 0;
 
     async function erkennen() {
       const Detector = (window as any).BarcodeDetector;
@@ -45,15 +51,28 @@ export default function QrScanner({
                 return;
               }
             } else if (decode) {
-              const canvas = canvasRef.current!;
-              canvas.width = v.videoWidth;
-              canvas.height = v.videoHeight;
-              const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-              ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-              const found = decode(ctx.getImageData(0, 0, canvas.width, canvas.height));
-              if (found) {
-                onScan(found);
-                return;
+              // ZXing is slow on full frames, so decode only the part of the
+              // picture inside the frame the user sees (a little larger), scaled
+              // down, and only about 10 times per second.
+              const now = performance.now();
+              if (now - lastDecode >= DECODE_INTERVAL_MS) {
+                lastDecode = now;
+                const side = Math.min(v.videoWidth, v.videoHeight); // the preview is a centred square
+                const sx = (v.videoWidth - side) / 2 + side * ROI.x;
+                const sy = (v.videoHeight - side) / 2 + side * ROI.y;
+                const sw = side * ROI.w;
+                const sh = side * ROI.h;
+                const scale = Math.min(1, MAX_DECODE_WIDTH / sw);
+                const canvas = canvasRef.current!;
+                canvas.width = Math.round(sw * scale);
+                canvas.height = Math.round(sh * scale);
+                const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+                ctx.drawImage(v, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                const found = decode(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                if (found) {
+                  onScan(found);
+                  return;
+                }
               }
             }
           } catch {
